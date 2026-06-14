@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Header, { ActionButton } from '@/components/layout/Header';
 import { useStoneStore } from '@/store/stoneStore';
 import { useStackStore } from '@/store/stackStore';
+import { useProjectStore } from '@/store/projectStore';
+import ReportPanel from '@/components/ReportPanel';
 import {
   computeOverhangMoments,
   computeContactStresses,
@@ -23,7 +25,7 @@ import {
   Waves,
   Gauge,
   ShieldAlert,
-  Download,
+  FileText,
   RefreshCw,
 } from 'lucide-react';
 import type { WarningItem } from '@/types/calc';
@@ -31,14 +33,17 @@ import type { WarningItem } from '@/types/calc';
 export default function StressAnalysis() {
   const { stones, getStoneMap } = useStoneStore();
   const store = useStackStore();
+  const projectStore = useProjectStore();
+  const currentPrj = projectStore.ensureDefaultProject();
   const scheme = store.schemes.find(s => s.id === store.currentSchemeId)
-    ?? (store.schemes.length === 0 ? store.createScheme('默认假山方案', '示例方案', 600, 400) : store.schemes[0]);
+    ?? (store.schemes.length === 0 ? store.createScheme(currentPrj.name + '·堆叠方案', currentPrj.description, currentPrj.base_dimensions.length_cm, currentPrj.base_dimensions.width_cm) : store.schemes[0]);
 
   const layers = store.getLayersForScheme(scheme.id);
   const placed = store.getPlacedForScheme(scheme.id);
   const stoneMap = getStoneMap();
 
   const [selectedWarning, setSelectedWarning] = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     if (layers.length === 0) {
@@ -124,7 +129,7 @@ export default function StressAnalysis() {
         actions={
           <>
             <ActionButton icon={RefreshCw} variant="ghost">重新计算</ActionButton>
-            <ActionButton icon={Download} variant="secondary">导出报告</ActionButton>
+            <ActionButton icon={FileText} variant="secondary" onClick={() => setShowReport(true)}>校核报告</ActionButton>
             <ActionButton icon={ShieldAlert}>
               诊断中心
               {dangerCount > 0 && (
@@ -485,6 +490,19 @@ export default function StressAnalysis() {
           </div>
         </div>
       </div>
+      <ReportPanel
+        open={showReport}
+        onClose={() => setShowReport(false)}
+        schemeId={scheme.id}
+        projectId={currentPrj.id}
+        cgResult={cgResult}
+        overhangs={overhangs}
+        contactStresses={stresses}
+        tieGrout={tieGrout}
+        loadCases={loadCases}
+        warnings={warnings}
+        placedStones={placed.map(p => ({ ...p, stone: stoneMap.get(p.stone_id) }))}
+      />
     </div>
   );
 }

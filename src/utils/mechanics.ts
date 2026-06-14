@@ -26,11 +26,11 @@ export const TIE_SPECS = [
   { name: '10号圆钢', diameter_mm: 10, allowable_tension_kN: 44.0 },
 ];
 
-export const SEISMIC_COEFFICIENTS: { type: LoadCaseResult['case_type']; coeff: number }[] = [
-  { type: '游人荷载', coeff: 0.05 },
-  { type: '地震7度', coeff: 0.08 },
-  { type: '地震8度', coeff: 0.16 },
-  { type: '地震9度', coeff: 0.32 },
+export const SEISMIC_COEFFICIENTS: { type: LoadCaseResult['case_type']; case_name: string; description: string; coeff: number }[] = [
+  { type: '游人荷载', case_name: '工况一：游人集中', description: '游客聚集在假山顶部活动', coeff: 0.05 },
+  { type: '地震7度', case_name: '工况二：地震7度设防', description: '抗震设防烈度7度（0.1g）', coeff: 0.08 },
+  { type: '地震8度', case_name: '工况三：地震8度设防', description: '抗震设防烈度8度（0.2g）', coeff: 0.16 },
+  { type: '地震9度', case_name: '工况四：地震9度设防', description: '抗震设防烈度9度（0.4g）', coeff: 0.32 },
 ];
 
 export const REQUIRED_OVERTURNING_SAFETY = 1.5;
@@ -215,8 +215,9 @@ export function computeTieAndGrout(
   const groutSF = groutStress > 0 ? GROUT_ALLOWABLE_STRESS / groutStress : 9.9;
 
   const totalForce = totalTieForceKN + totalGroutShearKN;
-  const tiePct = totalForce > 0 ? (totalTieForceKN / totalForce) * 100 : 0;
-  const groutPct = totalForce > 0 ? (totalGroutShearKN / totalForce) * 100 : 0;
+  const tiePct = totalForce > 0 ? (totalTieForceKN / totalForce) : 0;
+  const groutPct = totalForce > 0 ? (totalGroutShearKN / totalForce) : 0;
+  const stonePct = Math.max(0, 1 - tiePct - groutPct);
 
   return {
     total_tie_force_kN: +totalTieForceKN.toFixed(2),
@@ -227,7 +228,7 @@ export function computeTieAndGrout(
     tie_count: tieCount,
     tie_safety_factor: +Math.min(9.9, tieSF).toFixed(2),
     grout_safety_factor: +Math.min(9.9, groutSF).toFixed(2),
-    force_distribution: { tie_percent: +tiePct.toFixed(0), grout_percent: +groutPct.toFixed(0) },
+    force_distribution: { tie_percent: +(tiePct * 100).toFixed(0), grout_percent: +(groutPct * 100).toFixed(0), stone_percent: +(stonePct * 100).toFixed(0) },
   };
 }
 
@@ -260,8 +261,12 @@ export function computeLoadCases(
     const overturnM = lateralKN * (heightM * 0.6 + 0.5);
     const sf = overturnM > 0 ? resistingM / overturnM : 9.9;
     results.push({
+      case_name: sc.case_name,
+      description: sc.description,
       case_type: sc.type,
+      horizontal_force_kN: +lateralKN.toFixed(2),
       lateral_force_kN: +lateralKN.toFixed(2),
+      total_load_kN: +(totalWKN + liveKN).toFixed(2),
       total_weight_kN: +(totalWKN + liveKN).toFixed(2),
       base_width_cm: baseWidth,
       height_cm: +maxH.toFixed(0),

@@ -7,6 +7,7 @@ import {
   BookOpen,
   Gem,
 } from 'lucide-react';
+import ProjectSwitcher from '@/components/ProjectSwitcher';
 
 const navItems = [
   { path: '/stones', label: '叠石录入', icon: Mountain, desc: '湖石档案' },
@@ -41,6 +42,10 @@ export default function Sidebar() {
           </div>
         </div>
         <div className="mt-4 h-1 bg-gradient-to-r from-ochre-500/60 via-stoneblue-500/40 to-transparent rounded" />
+
+        <div className="mt-4">
+          <ProjectSwitcher />
+        </div>
       </div>
 
       <nav className="flex-1 py-4 px-3 space-y-1 relative overflow-y-auto">

@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import Header, { ActionButton } from '@/components/layout/Header';
 import { useStoneStore } from '@/store/stoneStore';
 import { useStackStore } from '@/store/stackStore';
-import { useParadigmStore } from '@/store/paradigmStore';
+import { useParadigmStore, type ParadigmFilter } from '@/store/paradigmStore';
 import SealStamp from '@/components/SealStamp';
 import RadarChart from '@/components/RadarChart';
+import ParadigmPreviewModal from '@/components/ParadigmPreviewModal';
 import {
   BookOpen,
   Star,
@@ -24,6 +25,13 @@ import {
   Award,
   Compass,
   Trash2,
+  Heart,
+  HeartOff,
+  Tag,
+  Filter,
+  Eye,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import type { Paradigm } from '@/types/paradigm';
 import { MATERIAL_NAMES, type StoneSupportType, type StackLayer } from '@/types/stone';
@@ -50,40 +58,78 @@ export default function ParadigmLibrary() {
   const store = useStackStore();
   const paradigmStore = useParadigmStore();
 
-  const [filter, setFilter] = useState<string>('all');
-  const [diffFilter, setDiffFilter] = useState<number>(0);
   const [search, setSearch] = useState('');
+  const [styleFilter, setStyleFilter] = useState<string>('all');
+  const [diffFilter, setDiffFilter] = useState<number>(0);
+  const [scoreMin, setScoreMin] = useState<number>(0);
+  const [scoreMax, setScoreMax] = useState<number>(100);
+  const [siteLen, setSiteLen] = useState<string>('');
+  const [siteWid, setSiteWid] = useState<string>('');
+  const [favOnly, setFavOnly] = useState(false);
+  const [customOnly, setCustomOnly] = useState(false);
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   const [selected, setSelected] = useState<Paradigm | null>(null);
+  const [previewParadigm, setPreviewParadigm] = useState<Paradigm | null>(null);
+
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveStyle, setSaveStyle] = useState<Paradigm['style']>('苏州式');
   const [saveDiff, setSaveDiff] = useState<Paradigm['difficulty']>(3);
   const [saveDesc, setSaveDesc] = useState('');
+  const [saveTags, setSaveTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('');
+  const [saveMinLen, setSaveMinLen] = useState<number>(400);
+  const [saveMinWid, setSaveMinWid] = useState<number>(300);
+  const [saveMaxLen, setSaveMaxLen] = useState<number>(800);
+  const [saveMaxWid, setSaveMaxWid] = useState<number>(600);
 
   const allParadigms = useMemo(
     () => paradigmStore.getAllParadigms(),
     [paradigmStore]
   );
 
-  const filtered = useMemo(() => {
-    return allParadigms.filter(p => {
-      if (filter !== 'all' && p.style !== filter) return false;
-      if (diffFilter > 0 && p.difficulty !== diffFilter) return false;
-      if (search && !(p.name.includes(search) || p.garden.includes(search) || p.description.includes(search))) return false;
-      return true;
-    });
-  }, [allParadigms, filter, diffFilter, search]);
+  const allTags = useMemo(() => paradigmStore.getAllTags(), [paradigmStore]);
+
+  const filterObj: ParadigmFilter = useMemo(() => ({
+    keyword: search || undefined,
+    style: styleFilter === 'all' ? undefined : styleFilter,
+    difficultyMin: diffFilter === 0 ? undefined : diffFilter,
+    difficultyMax: diffFilter === 0 ? undefined : diffFilter,
+    scoreMin: scoreMin || undefined,
+    scoreMax: scoreMax || undefined,
+    siteLengthCm: siteLen ? Number(siteLen) : undefined,
+    siteWidthCm: siteWid ? Number(siteWid) : undefined,
+    favoriteOnly: favOnly || undefined,
+    customOnly: customOnly || undefined,
+    tags: tagFilter.length > 0 ? tagFilter : undefined,
+  }), [search, styleFilter, diffFilter, scoreMin, scoreMax, siteLen, siteWid, favOnly, customOnly, tagFilter]);
+
+  const filtered = useMemo(
+    () => paradigmStore.filterParadigms(filterObj),
+    [paradigmStore, filterObj]
+  );
 
   const currentScheme = store.schemes.find(s => s.id === store.currentSchemeId);
   const currentPlaced = store.getPlacedForScheme(store.currentSchemeId);
   const currentLayers = store.getLayersForScheme(store.currentSchemeId);
 
+  const toggleFav = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    paradigmStore.toggleFavorite(id);
+  };
+
+  const toggleTagFilter = (t: string) => {
+    setTagFilter(prev =>
+      prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]
+    );
+  };
+
   const loadParadigm = (p: Paradigm) => {
-    if (!confirm(`将载入范式「${p.name}」并清空当前堆叠，是否继续？`)) return;
     store.clearScheme();
     const scheme = store.schemes.find(s => s.id === store.currentSchemeId);
     if (scheme) {
-      // Update scheme info
       const idx = store.schemes.findIndex(s => s.id === scheme.id);
       if (idx >= 0) {
         store.schemes[idx] = {
@@ -97,7 +143,6 @@ export default function ParadigmLibrary() {
       }
     }
 
-    // Create layers based on paradigm
     const createdLayers: { type: string; id: string; baseZ: number }[] = [];
     let accumZ = 0;
     const VALID_LAYER_TYPES = ['基础层', '主山层', '中层', '顶峦层', '配石层'] as const;
@@ -109,7 +154,6 @@ export default function ParadigmLibrary() {
       accumZ += p.height_m * 100 * layer.height_ratio;
     }
 
-    // Place stones with scaling
     const scaleX = p.base_dimensions.length_cm;
     const scaleY = p.base_dimensions.width_cm;
     const scaleZ = p.height_m * 100;
@@ -122,7 +166,6 @@ export default function ParadigmLibrary() {
       const lyr = createdLayers[li];
       for (let si = 0; si < layer.stones.length; si++) {
         const stone = layer.stones[si];
-        // Select a real stone that's close to desired weight
         const desiredWeight = avgWeight * stone.relative_weight_ratio;
         let bestIdx = si % available.length;
         let bestDiff = Infinity;
@@ -151,6 +194,7 @@ export default function ParadigmLibrary() {
     }
 
     setSelected(p);
+    setPreviewParadigm(null);
     console.log(`%c✅ 范式「${p.name}」载入完成！请到重心校核页查看堆叠。`, 'color:#059669;font-weight:bold');
   };
 
@@ -172,7 +216,6 @@ export default function ParadigmLibrary() {
     const avgLeak = stones.length > 0 ? stones.reduce((s, x) => s + x.porosity, 0) / stones.length : 7;
     const avgThr = stones.length > 0 ? stones.reduce((s, x) => s + x.complexity, 0) / stones.length : 7;
 
-    // Create layer skeletons
     const layerSkeletons = currentLayers.map(layer => {
       const layerPlaced = currentPlaced.filter(p => p.layer_id === layer.id);
       const maxLayerZ = layerPlaced.reduce((m, p) => Math.max(m, p.pos_z), 0);
@@ -229,12 +272,21 @@ export default function ParadigmLibrary() {
       image_thumb: 'cus_01',
       is_custom: true,
       created_at: Date.now(),
+      tags: saveTags.length > 0 ? saveTags : undefined,
+      site_dimensions: {
+        min_length_cm: saveMinLen,
+        max_length_cm: saveMaxLen,
+        min_width_cm: saveMinWid,
+        max_width_cm: saveMaxWid,
+      },
+      favorite: false,
     };
 
     paradigmStore.addCustomParadigm(newParadigm);
     setShowSaveModal(false);
     setSaveName('');
     setSaveDesc('');
+    setSaveTags([]);
     console.log('%c✅ 已保存为自定义范式！关闭应用重新打开也会保留。', 'color:#059669;font-weight:bold');
   };
 
@@ -242,6 +294,16 @@ export default function ParadigmLibrary() {
     paradigmStore.removeCustomParadigm(id);
     if (selected?.id === id) setSelected(null);
   };
+
+  const addSaveTag = () => {
+    const t = newTag.trim();
+    if (t && !saveTags.includes(t)) {
+      setSaveTags([...saveTags, t]);
+      setNewTag('');
+    }
+  };
+
+  const removeSaveTag = (t: string) => setSaveTags(saveTags.filter(x => x !== t));
 
   return (
     <div className="flex-1 flex flex-col min-h-screen">
@@ -273,17 +335,18 @@ export default function ParadigmLibrary() {
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="搜索范式名称、园林、技法..."
+                placeholder="搜索范式名称、园林、技法、标签..."
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-ink-50 border border-ink-200 focus:border-stoneblue-500 focus:outline-none text-sm transition"
               />
             </div>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-ink-500 mr-2">流派:</span>
               {STYLE_FILTERS.map(f => (
                 <button
                   key={f.value}
-                  onClick={() => setFilter(f.value)}
+                  onClick={() => setStyleFilter(f.value)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    filter === f.value
+                    styleFilter === f.value
                       ? 'bg-gradient-to-r from-stoneblue-600 to-ink-700 text-white shadow-md'
                       : 'bg-ink-100 text-ink-600 hover:bg-ink-200'
                   }`}
@@ -309,7 +372,109 @@ export default function ParadigmLibrary() {
                 </button>
               ))}
             </div>
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="ghost-btn text-sm py-1.5 px-3 flex items-center gap-1"
+            >
+              <Filter className="w-4 h-4" />
+              高级筛选
+              {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
           </div>
+
+          {showAdvanced && (
+            <div className="px-5 pb-5 pt-0 border-t border-ink-100 space-y-4 mt-2">
+              <div className="grid grid-cols-4 gap-3 pt-4">
+                <div>
+                  <label className="text-xs text-ink-600 font-semibold block mb-1">评分下限</label>
+                  <input
+                    type="number" min={0} max={100}
+                    value={scoreMin}
+                    onChange={e => setScoreMin(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 rounded-lg border border-ink-200 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-ink-600 font-semibold block mb-1">评分上限</label>
+                  <input
+                    type="number" min={0} max={100}
+                    value={scoreMax}
+                    onChange={e => setScoreMax(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 rounded-lg border border-ink-200 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-ink-600 font-semibold block mb-1">场地长度(cm)</label>
+                  <input
+                    type="number" placeholder="如 600"
+                    value={siteLen}
+                    onChange={e => setSiteLen(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-ink-200 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-ink-600 font-semibold block mb-1">场地宽度(cm)</label>
+                  <input
+                    type="number" placeholder="如 400"
+                    value={siteWid}
+                    onChange={e => setSiteWid(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-ink-200 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 text-sm text-ink-700 cursor-pointer">
+                  <input
+                    type="checkbox" checked={favOnly}
+                    onChange={e => setFavOnly(e.target.checked)}
+                    className="w-4 h-4 text-stoneblue-600"
+                  />
+                  <Heart className="w-4 h-4 text-cinnabar-500 fill-cinnabar-400" />
+                  仅显示收藏
+                </label>
+                <label className="flex items-center gap-2 text-sm text-ink-700 cursor-pointer">
+                  <input
+                    type="checkbox" checked={customOnly}
+                    onChange={e => setCustomOnly(e.target.checked)}
+                    className="w-4 h-4 text-stoneblue-600"
+                  />
+                  仅显示我的自定义
+                </label>
+              </div>
+
+              {allTags.length > 0 && (
+                <div>
+                  <p className="text-xs text-ink-600 font-semibold mb-2 flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5" /> 按标签筛选
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {allTags.map(t => (
+                      <button
+                        key={t}
+                        onClick={() => toggleTagFilter(t)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
+                          tagFilter.includes(t)
+                            ? 'bg-stoneblue-600 text-white border-stoneblue-600'
+                            : 'bg-white text-ink-600 border-ink-200 hover:border-stoneblue-400'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                    {tagFilter.length > 0 && (
+                      <button
+                        onClick={() => setTagFilter([])}
+                        className="px-2.5 py-1 rounded-full text-xs text-ink-500 hover:text-ink-700"
+                      >
+                        清空
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-12 gap-6">
@@ -324,7 +489,6 @@ export default function ParadigmLibrary() {
                     selected?.id === p.id ? 'ring-2 ring-stoneblue-500 ring-offset-2 shadow-xl scale-[1.01]' : 'hover:shadow-lg hover:-translate-y-0.5'
                   }`}
                 >
-                  {/* 顶部园林缩略（用SVG模拟） */}
                   <div className="relative h-36 overflow-hidden rounded-t-2xl border-b border-ink-200">
                     <div
                       className="absolute inset-0"
@@ -336,9 +500,7 @@ export default function ParadigmLibrary() {
                       }}
                     />
                     <svg viewBox="0 0 400 160" className="absolute inset-0 w-full h-full">
-                      {/* 远山 */}
                       <path d="M0,120 Q50,80 100,100 T200,90 T300,100 T400,85 L400,160 L0,160Z" fill="#b8a082" opacity="0.25" />
-                      {/* 主山 */}
                       {p.layers.map((layer, li) => (
                         layer.stones.map((st, si) => {
                           const cx = 60 + st.relative_position.x * 280;
@@ -348,10 +510,8 @@ export default function ParadigmLibrary() {
                           const pal = ['#8b7355', '#5c6b7a', '#7a5c3e', '#a0522d', '#4a9b83'];
                           return (
                             <g key={`${li}-${si}`}>
-                              <ellipse
-                                cx={cx} cy={baseY - h / 2} rx={w / 2} ry={h / 2}
-                                fill={pal[(li + si) % pal.length]} opacity="0.85"
-                              />
+                              <ellipse cx={cx} cy={baseY - h / 2} rx={w / 2} ry={h / 2}
+                                fill={pal[(li + si) % pal.length]} opacity="0.85" />
                               <path
                                 d={`M${cx - w / 2 + 4},${baseY - h * 0.3} Q${cx - w / 3},${baseY - h + 6} ${cx},${baseY - h * 0.7}`}
                                 fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1"
@@ -360,11 +520,10 @@ export default function ParadigmLibrary() {
                           );
                         })
                       ))}
-                      {/* 水波纹 */}
                       <path d="M0,148 Q50,144 100,148 T200,148 T300,148 T400,148 L400,160 L0,160Z" fill="#5c6b7a" opacity="0.12" />
                     </svg>
 
-                    <div className="absolute top-3 left-3 flex gap-1.5">
+                    <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap max-w-[70%]">
                       <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold shadow ${DIFFICULTY_COLORS[p.difficulty]}`}>
                         {'★'.repeat(p.difficulty)}
                       </span>
@@ -373,8 +532,25 @@ export default function ParadigmLibrary() {
                           我的
                         </span>
                       )}
+                      {p.favorite && (
+                        <Heart className="w-5 h-5 text-cinnabar-500 fill-cinnabar-400 drop-shadow" />
+                      )}
+                      {p.tags?.slice(0, 2).map(t => (
+                        <span key={t} className="px-2 py-0.5 rounded-full text-[10px] bg-ink-800/60 text-white font-semibold">
+                          #{t}
+                        </span>
+                      ))}
                     </div>
-                    <div className="absolute top-3 right-3">
+                    <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
+                      <button
+                        onClick={(e) => toggleFav(e, p.id)}
+                        className="w-7 h-7 rounded-full bg-white/80 backdrop-blur flex items-center justify-center hover:bg-white transition"
+                        title={p.favorite ? '取消收藏' : '收藏'}
+                      >
+                        {p.favorite
+                          ? <Heart className="w-4 h-4 text-cinnabar-500 fill-cinnabar-400" />
+                          : <HeartOff className="w-4 h-4 text-ink-500" />}
+                      </button>
                       <SealStamp
                         status={p.score_overall >= 92 ? 'pass' : p.score_overall >= 85 ? 'warn' : 'danger'}
                         size="md"
@@ -396,12 +572,19 @@ export default function ParadigmLibrary() {
                     </div>
                   </div>
 
-                  {/* 卡片底部信息 */}
                   <div className="p-4">
                     <div className="flex items-center gap-3 mb-3 text-xs text-ink-500">
                       <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{p.dynasty}</span>
                       <span>·</span>
                       <span className="flex items-center gap-1"><Compass className="w-3.5 h-3.5" />{p.style}</span>
+                      {p.site_dimensions && (
+                        <>
+                          <span>·</span>
+                          <span className="text-ink-600">
+                            场地 {p.site_dimensions.min_length_cm}-{p.site_dimensions.max_length_cm}cm
+                          </span>
+                        </>
+                      )}
                     </div>
                     <div className="grid grid-cols-4 gap-2 mb-3 text-center">
                       <div className="bg-ink-50 rounded-lg py-2">
@@ -425,6 +608,15 @@ export default function ParadigmLibrary() {
                         <p className="font-bold text-sm text-ink-800">{p.stone_count}</p>
                       </div>
                     </div>
+                    {p.tags && p.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {p.tags.map(t => (
+                          <span key={t} className="px-2 py-0.5 rounded-full text-[10px] bg-stoneblue-50 text-stoneblue-700 border border-stoneblue-200">
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-xs text-ink-600 line-clamp-2 leading-relaxed mb-3">{p.description}</p>
                     <div className="flex items-center justify-between pt-3 border-t border-ink-100">
                       <div className="flex -space-x-1">
@@ -442,13 +634,22 @@ export default function ParadigmLibrary() {
                           );
                         })}
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); loadParadigm(p); }}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-stoneblue-600 to-ink-700 text-white text-xs font-bold hover:shadow-md transition"
-                      >
-                        <Import className="w-3.5 h-3.5" />载入
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setPreviewParadigm(p); }}
+                          className="ghost-btn text-xs py-1.5 px-2 flex items-center gap-1"
+                          title="预览骨架"
+                        >
+                          <Eye className="w-3.5 h-3.5" />预览
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setPreviewParadigm(p); }}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-stoneblue-600 to-ink-700 text-white text-xs font-bold hover:shadow-md transition"
+                        >
+                          <Import className="w-3.5 h-3.5" />载入
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -474,6 +675,15 @@ export default function ParadigmLibrary() {
                   <div className="flex items-center justify-between px-5 py-4 border-b border-ink-200">
                     <h3 className="font-bold font-song text-lg text-ink-800">范式详情</h3>
                     <div className="flex gap-1">
+                      <button
+                        onClick={() => paradigmStore.toggleFavorite(selected.id)}
+                        className="p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 transition"
+                        title="收藏"
+                      >
+                        {selected.favorite
+                          ? <Heart className="w-4 h-4 text-cinnabar-500 fill-cinnabar-400" />
+                          : <HeartOff className="w-4 h-4" />}
+                      </button>
                       {selected.is_custom && (
                         <button
                           onClick={() => deleteCustom(selected.id)}
@@ -497,6 +707,15 @@ export default function ParadigmLibrary() {
                       <h2 className="text-xl font-bold font-song text-ink-900">{selected.name}</h2>
                       <p className="text-sm text-ink-600 mt-1">{selected.garden} · {selected.dynasty}</p>
                       <p className="text-xs mt-2 text-stoneblue-700 font-semibold tracking-wide">{selected.style}</p>
+                      {selected.tags && selected.tags.length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-1 mt-2">
+                          {selected.tags.map(t => (
+                            <span key={t} className="px-2 py-0.5 rounded-full text-[10px] bg-stoneblue-50 text-stoneblue-700 border border-stoneblue-200">
+                              #{t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <RadarChart
@@ -511,6 +730,16 @@ export default function ParadigmLibrary() {
                       size={200}
                       max={100}
                     />
+
+                    {selected.site_dimensions && (
+                      <div className="p-3 rounded-xl bg-stoneblue-50/60 border border-stoneblue-200 text-sm text-ink-700">
+                        <p className="text-xs font-bold text-stoneblue-700 mb-1">🏔 适用场地尺寸</p>
+                        <p className="text-sm">
+                          长 {selected.site_dimensions.min_length_cm} ~ {selected.site_dimensions.max_length_cm}cm ×
+                          宽 {selected.site_dimensions.min_width_cm} ~ {selected.site_dimensions.max_width_cm}cm
+                        </p>
+                      </div>
+                    )}
 
                     <div className="space-y-3">
                       <h4 className="text-sm font-bold text-ink-700 flex items-center gap-1">
@@ -573,12 +802,20 @@ export default function ParadigmLibrary() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => loadParadigm(selected)}
-                      className="w-full py-3 rounded-xl bg-gradient-to-r from-stoneblue-600 via-ink-700 to-cinnabar-600 text-white font-bold shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
-                    >
-                      <Import className="w-5 h-5" />载入此范式到当前方案
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setPreviewParadigm(selected)}
+                        className="ghost-btn text-sm py-2.5 flex items-center justify-center gap-1.5"
+                      >
+                        <Eye className="w-4 h-4" /> 预览骨架
+                      </button>
+                      <button
+                        onClick={() => setPreviewParadigm(selected)}
+                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-stoneblue-600 via-ink-700 to-cinnabar-600 text-white font-bold shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                      >
+                        <Import className="w-5 h-5" />载入此范式
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -592,9 +829,10 @@ export default function ParadigmLibrary() {
                     </p>
                     <ul className="text-xs text-ink-600 space-y-1 list-disc pl-4">
                       <li>浏览6大江南名园与北方皇家园林经典案例</li>
-                      <li>点击「载入」可将骨架一键应用至当前方案</li>
+                      <li>点击「预览」查看层级骨架与石位分布</li>
                       <li>完成满意方案后点「存为范式」收录个人经验</li>
-                      <li>可按流派、营造难度、评分等维度筛选</li>
+                      <li>可按流派、标签、难度、评分、场地等多维筛选</li>
+                      <li>♥ 收藏范式方便快速调用</li>
                     </ul>
                   </div>
                 </div>
@@ -606,8 +844,8 @@ export default function ParadigmLibrary() {
         {/* 保存为范式弹窗 */}
         {showSaveModal && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-ink-50 w-full max-w-lg rounded-3xl shadow-2xl border border-ink-200 overflow-hidden animate-fadeIn">
-              <div className="px-6 py-4 border-b border-ink-200 flex items-center justify-between bg-gradient-to-r from-stoneblue-600 to-ink-700">
+            <div className="bg-ink-50 w-full max-w-2xl rounded-3xl shadow-2xl border border-ink-200 overflow-hidden max-h-[90vh] flex flex-col">
+              <div className="px-6 py-4 border-b border-ink-200 flex items-center justify-between bg-gradient-to-r from-stoneblue-600 to-ink-700 shrink-0">
                 <h3 className="font-bold font-song text-xl text-white flex items-center gap-2">
                   <Save className="w-5 h-5" />保存为自定义范式
                 </h3>
@@ -615,7 +853,7 @@ export default function ParadigmLibrary() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto">
                 <div>
                   <label className="text-sm font-semibold text-ink-700 block mb-1.5">范式名称 *</label>
                   <input
@@ -657,6 +895,70 @@ export default function ParadigmLibrary() {
                     </div>
                   </div>
                 </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-ink-700 block mb-1.5 flex items-center gap-1.5">
+                    <Tag className="w-4 h-4 text-stoneblue-600" /> 标签
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {saveTags.map(t => (
+                      <span key={t} className="px-2.5 py-1 rounded-full bg-stoneblue-100 text-stoneblue-700 text-xs font-semibold flex items-center gap-1">
+                        #{t}
+                        <button onClick={() => removeSaveTag(t)} className="w-4 h-4 rounded-full hover:bg-stoneblue-200 flex items-center justify-center">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      value={newTag}
+                      onChange={e => setNewTag(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSaveTag(); } }}
+                      placeholder="输入标签后回车或点击添加"
+                      className="flex-1 px-3 py-2 rounded-lg bg-white border border-ink-200 text-sm focus:outline-none focus:border-stoneblue-500"
+                    />
+                    <button onClick={addSaveTag} className="px-4 py-2 rounded-lg bg-ink-800 text-white text-sm font-semibold hover:bg-ink-900">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-xs text-ink-600 font-semibold block mb-1">最小长(cm)</label>
+                    <input
+                      type="number" value={saveMinLen}
+                      onChange={e => setSaveMinLen(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-lg bg-white border border-ink-200 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-600 font-semibold block mb-1">最大长(cm)</label>
+                    <input
+                      type="number" value={saveMaxLen}
+                      onChange={e => setSaveMaxLen(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-lg bg-white border border-ink-200 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-600 font-semibold block mb-1">最小宽(cm)</label>
+                    <input
+                      type="number" value={saveMinWid}
+                      onChange={e => setSaveMinWid(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-lg bg-white border border-ink-200 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink-600 font-semibold block mb-1">最大宽(cm)</label>
+                    <input
+                      type="number" value={saveMaxWid}
+                      onChange={e => setSaveMaxWid(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-lg bg-white border border-ink-200 text-sm"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-sm font-semibold text-ink-700 block mb-1.5">营造说明</label>
                   <textarea
@@ -677,7 +979,7 @@ export default function ParadigmLibrary() {
                   </div>
                 </div>
               </div>
-              <div className="px-6 py-4 border-t border-ink-200 bg-ink-100/50 flex gap-3 justify-end">
+              <div className="px-6 py-4 border-t border-ink-200 bg-ink-100/50 flex gap-3 justify-end shrink-0">
                 <button
                   onClick={() => setShowSaveModal(false)}
                   className="px-5 py-2.5 rounded-xl bg-white border border-ink-200 text-ink-700 font-semibold hover:bg-ink-50 transition"
@@ -694,6 +996,13 @@ export default function ParadigmLibrary() {
             </div>
           </div>
         )}
+
+        <ParadigmPreviewModal
+          open={!!previewParadigm}
+          onClose={() => setPreviewParadigm(null)}
+          paradigm={previewParadigm}
+          onLoad={() => previewParadigm && loadParadigm(previewParadigm)}
+        />
       </div>
     </div>
   );

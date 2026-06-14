@@ -37,4 +37,9 @@ export interface Paradigm {
   image_thumb: string;
   is_custom: boolean;
   created_at: number;
+
+  tags?: string[];
+  site_dimensions?: { min_length_cm?: number; max_length_cm?: number; min_width_cm?: number; max_width_cm?: number };
+  favorite?: boolean;
+  updatedAt?: number;
 }

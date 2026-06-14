@@ -6,14 +6,21 @@ export interface Point3D {
 
 export interface CenterOfGravityResult {
   overall_cg: Point3D;
-  layer_cgs: { layer_id: string; layer_name: string; cg: Point3D; total_weight_kg: number }[];
+  cg_x_cm: number;
+  cg_y_cm: number;
+  cg_z_cm: number;
+  layer_cgs: { layer_id: string; layer_name: string; cg: Point3D; cg_x: number; cg_y: number; cg_z: number; weight_kg: number; total_weight_kg: number }[];
   projection_x: number;
   projection_y: number;
   support_polygon: { x: number; y: number }[];
   is_within_support: boolean;
   eccentricity_cm: number;
+  eccentricity_x_cm: number;
+  eccentricity_y_cm: number;
   stability_margin_percent: number;
   nearest_edge_distance_cm: number;
+  distance_to_nearest_edge_cm: number;
+  total_weight_kg: number;
 }
 
 export interface OverhangMomentResult {
@@ -54,12 +61,16 @@ export interface TieAndGroutResult {
   tie_count: number;
   tie_safety_factor: number;
   grout_safety_factor: number;
-  force_distribution: { tie_percent: number; grout_percent: number };
+  force_distribution: { tie_percent: number; grout_percent: number; stone_percent: number };
 }
 
 export interface LoadCaseResult {
+  case_name: string;
+  description: string;
   case_type: '游人荷载' | '地震7度' | '地震8度' | '地震9度';
+  horizontal_force_kN: number;
   lateral_force_kN: number;
+  total_load_kN: number;
   total_weight_kN: number;
   base_width_cm: number;
   height_cm: number;
@@ -67,6 +78,20 @@ export interface LoadCaseResult {
   overturning_moment_kNm: number;
   safety_factor: number;
   is_safe: boolean;
+}
+
+export interface StressAnalysisResult {
+  overhang: OverhangMomentResult;
+  contact_stresses: ContactStressResult[];
+  tie_grout: {
+    tie_points_count: number;
+    grout_seams_count: number;
+    tie_safety_factor: number;
+    grout_safety_factor: number;
+    load_share_ratio: { stone: number; tie: number; grout: number };
+  };
+  load_cases: LoadCaseResult[];
+  warnings: WarningItem[];
 }
 
 export interface WarningItem {

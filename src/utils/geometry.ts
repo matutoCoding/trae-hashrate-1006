@@ -44,7 +44,7 @@ export function computeCenterOfGravity(
   placedStones: PlacedStone[],
   stonesMap: Map<string, Stone>
 ): CenterOfGravityResult {
-  const layerCGs: { layer_id: string; layer_name: string; cg: Point3D; total_weight_kg: number }[] = [];
+  const layerCGs: { layer_id: string; layer_name: string; cg: Point3D; cg_x: number; cg_y: number; cg_z: number; weight_kg: number; total_weight_kg: number }[] = [];
   let totalW = 0;
   let sumXW = 0, sumYW = 0, sumZW = 0;
 
@@ -64,10 +64,17 @@ export function computeCenterOfGravity(
       lZW += cgz * w;
     }
     if (lW > 0) {
+      const lcgx = lXW / lW;
+      const lcgy = lYW / lW;
+      const lcgz = lZW / lW;
       layerCGs.push({
         layer_id: layer.id,
         layer_name: layer.name,
-        cg: { x: lXW / lW, y: lYW / lW, z: lZW / lW },
+        cg: { x: lcgx, y: lcgy, z: lcgz },
+        cg_x: +lcgx.toFixed(2),
+        cg_y: +lcgy.toFixed(2),
+        cg_z: +lcgz.toFixed(2),
+        weight_kg: lW,
         total_weight_kg: lW,
       });
       totalW += lW;
@@ -108,14 +115,21 @@ export function computeCenterOfGravity(
 
   return {
     overall_cg: overallCG,
+    cg_x_cm: +overallCG.x.toFixed(2),
+    cg_y_cm: +overallCG.y.toFixed(2),
+    cg_z_cm: +overallCG.z.toFixed(2),
     layer_cgs: layerCGs,
     projection_x: projX,
     projection_y: projY,
     support_polygon: supportPolygon,
     is_within_support: isWithin,
     eccentricity_cm: +ecc.toFixed(2),
+    eccentricity_x_cm: +Math.abs(projX - baseCx).toFixed(2),
+    eccentricity_y_cm: +Math.abs(projY - baseCy).toFixed(2),
     stability_margin_percent: +margin.toFixed(1),
     nearest_edge_distance_cm: +minDist.toFixed(2),
+    distance_to_nearest_edge_cm: +minDist.toFixed(2),
+    total_weight_kg: totalW,
   };
 }
 

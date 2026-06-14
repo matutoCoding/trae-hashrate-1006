@@ -2,12 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import Header, { ActionButton } from '@/components/layout/Header';
 import { useStoneStore } from '@/store/stoneStore';
 import { useStackStore } from '@/store/stackStore';
+import { useProjectStore } from '@/store/projectStore';
+import { useConstructionStore } from '@/store/constructionStore';
 import { generateConstructionSequence, computeAestheticScore } from '@/utils/aesthetics';
 import { computeCenterOfGravity } from '@/utils/geometry';
 import { generateWarnings, computeOverhangMoments } from '@/utils/mechanics';
 import SealStamp from '@/components/SealStamp';
 import RadarChart from '@/components/RadarChart';
 import { MATERIAL_NAMES } from '@/types/stone';
+import ConstructionBriefingModal from '@/components/ConstructionBriefingModal';
 import {
   ListOrdered,
   Hammer,
@@ -25,14 +28,22 @@ import {
   ChevronUp,
   FileText,
   Package,
+  Clock,
+  User,
+  Play,
+  RotateCcw,
 } from 'lucide-react';
 import type { ConstructionStep, WarningItem } from '@/types/calc';
 
 export default function Construction() {
   const { stones, getStoneMap } = useStoneStore();
   const store = useStackStore();
+  const projectStore = useProjectStore();
+  const currentPrj = projectStore.ensureDefaultProject();
+  const constrStore = useConstructionStore();
+
   const scheme = store.schemes.find(s => s.id === store.currentSchemeId)
-    ?? (store.schemes.length === 0 ? store.createScheme('默认假山方案', '示例方案', 600, 400) : store.schemes[0]);
+    ?? (store.schemes.length === 0 ? store.createScheme(currentPrj.name + '·堆叠方案', currentPrj.description, currentPrj.base_dimensions.length_cm, currentPrj.base_dimensions.width_cm) : store.schemes[0]);
 
   const layers = store.getLayersForScheme(scheme.id);
   const placed = store.getPlacedForScheme(scheme.id);
@@ -40,6 +51,7 @@ export default function Construction() {
 
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
+  const [showBriefing, setShowBriefing] = useState(false);
 
   useEffect(() => {
     if (layers.length === 0) {
@@ -62,6 +74,14 @@ export default function Construction() {
       }
     }
   }, [placed.length, stones, layers, store]);
+
+  useEffect(() => {
+    if (placed.length > 0) {
+      constrStore.initializeRecords(currentPrj.id, scheme.id, placed, stoneMap, layers);
+    }
+  }, [placed.length, currentPrj.id, scheme.id]);
+
+  const progress = constrStore.getProgress(currentPrj.id, scheme.id);
 
   const steps = useMemo(
     () => generateConstructionSequence(placed, stoneMap, layers),
@@ -155,9 +175,26 @@ export default function Construction() {
     <div className="flex-1 flex flex-col min-h-screen">
       <Header
         title="施工堆叠"
-        subtitle={`${scheme.name} · 共 ${steps.length} 步就位工序 · 总重 ${(totalWeight / 1000).toFixed(2)} 吨 · 高 ${(maxH / 100).toFixed(1)}m`}
+        subtitle={`${scheme.name} · 共 ${steps.length} 步就位工序 · 总重 ${(totalWeight / 1000).toFixed(2)} 吨 · 高 ${(maxH / 100).toFixed(1)}m · 进度 ${progress.percent}%`}
         actions={
           <>
+            <div className="flex items-center gap-2 bg-ink-100 rounded-lg p-1 px-2">
+              <div className="flex items-center gap-1.5 text-xs text-ink-600 mr-2">
+                <span className="w-2 h-2 rounded-full bg-pine-500"></span>
+                {progress.done} 完成
+                <span className="w-2 h-2 rounded-full bg-ink-300"></span>
+                {progress.pending} 待办
+                {progress.rejected > 0 && (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-cinnabar-500"></span>
+                    {progress.rejected} 复核不通过
+                  </>
+                )}
+              </div>
+              <div className="w-32 h-2 bg-ink-200 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-pine-500 to-stoneblue-500 transition-all" style={{ width: `${progress.percent}%` }} />
+              </div>
+            </div>
             <div className="flex items-center gap-1 bg-ink-100 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('timeline')}
@@ -174,7 +211,7 @@ export default function Construction() {
             </div>
             <ActionButton icon={Printer} variant="ghost">打印</ActionButton>
             <ActionButton icon={Download} variant="secondary" onClick={exportSequence}>导出施工图</ActionButton>
-            <ActionButton icon={Hammer}>施工交底</ActionButton>
+            <ActionButton icon={Hammer} onClick={() => setShowBriefing(true)}>施工交底</ActionButton>
           </>
         }
       />
@@ -366,16 +403,38 @@ export default function Construction() {
                           {layerSteps.map((step, si) => {
                             const isExpanded = expandedStep === step.order;
                             const stone = stones.find(s => s.code === step.stone_code);
+                            const placedStone = placed.find(p => p.id === step.placed_stone_id);
+                            const record = placedStone ? constrStore.records.find(r => r.placed_stone_id === placedStone.id) : undefined;
                             const orderColors = ['from-pine-500 to-pine-600', 'from-stoneblue-500 to-stoneblue-600', 'from-ochre-500 to-ochre-600', 'from-cinnabar-500 to-cinnabar-600'];
+                            const statusColor: Record<string, string> = {
+                              pending: 'border-ink-300 bg-white text-ink-500',
+                              confirmed: 'border-pine-500 bg-pine-500 text-white',
+                              rejected: 'border-cinnabar-500 bg-cinnabar-500 text-white',
+                              revision: 'border-ochre-500 bg-ochre-500 text-white',
+                            };
+                            const stepStatus = record?.actual.status ?? 'pending';
                             return (
                               <div key={`${gi}-${si}`} className="relative pl-16">
                                 <div className={`absolute left-[10px] top-1 w-8 h-8 rounded-full bg-gradient-to-br ${orderColors[gi % orderColors.length]} flex items-center justify-center text-white font-bold shadow-lg ring-4 ring-white z-10`}>
                                   {step.order}
                                 </div>
+                                {record && (
+                                  <div className={`absolute left-[44px] top-4 w-5 h-5 rounded-full border-2 ${statusColor[stepStatus]} flex items-center justify-center z-20`}>
+                                    {stepStatus === 'confirmed' && <CheckCircle2 className="w-3 h-3" />}
+                                    {stepStatus === 'rejected' && <XCircle className="w-3 h-3" />}
+                                    {stepStatus === 'revision' && <RotateCcw className="w-3 h-3" />}
+                                    {stepStatus === 'pending' && <Clock className="w-3 h-3" />}
+                                  </div>
+                                )}
 
                                 <div
                                   onClick={() => setExpandedStep(isExpanded ? null : step.order)}
-                                  className={`cursor-pointer rounded-xl border-2 transition-all ${isExpanded ? 'border-stoneblue-400 bg-stoneblue-50/50 shadow-md' : 'border-ink-200 bg-white hover:border-stoneblue-300 hover:shadow-sm'}`}
+                                  className={`cursor-pointer rounded-xl border-2 transition-all ${
+                                    isExpanded ? 'border-stoneblue-400 bg-stoneblue-50/50 shadow-md' :
+                                    stepStatus === 'confirmed' ? 'border-pine-200 bg-pine-50/30 hover:border-pine-300' :
+                                    stepStatus === 'rejected' ? 'border-cinnabar-200 bg-cinnabar-50/30 hover:border-cinnabar-300' :
+                                    'border-ink-200 bg-white hover:border-stoneblue-300 hover:shadow-sm'
+                                  }`}
                                 >
                                   <div className="p-4 flex items-center gap-4">
                                     <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-ink-100 to-ink-200 flex items-center justify-center shadow-inner">
@@ -430,6 +489,60 @@ export default function Construction() {
                                               <div><span className="text-ink-500">纹理</span><p className="font-semibold">{stone.texture_dir}</p></div>
                                             </div>
                                             {stone.notes && <p className="text-xs text-ink-600 mt-2 italic">"{stone.notes}"</p>}
+                                          </div>
+                                        )}
+                                        {record && record.actual.status !== 'pending' && (
+                                          <div className="col-span-2 p-3 bg-gradient-to-br from-ink-50 to-white rounded-lg border border-ink-200">
+                                            <div className="flex items-center justify-between mb-2">
+                                              <p className="text-xs text-ink-700 font-bold">📋 现场施工记录</p>
+                                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                                record.actual.status === 'confirmed' ? 'bg-pine-100 text-pine-700' :
+                                                record.actual.status === 'rejected' ? 'bg-cinnabar-100 text-cinnabar-700' :
+                                                'bg-ochre-100 text-ochre-700'
+                                              }`}>
+                                                {record.actual.status === 'confirmed' ? '✓ 已复核确认' :
+                                                 record.actual.status === 'rejected' ? '✗ 复核不通过' :
+                                                 '⟲ 待返工'}
+                                              </span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                              <div>
+                                                <span className="text-ink-500">吊装完成时间</span>
+                                                <p className="font-semibold text-ink-800">
+                                                  {record.actual.confirmed_at
+                                                    ? new Date(record.actual.confirmed_at).toLocaleString('zh-CN')
+                                                    : '—'}
+                                                </p>
+                                              </div>
+                                              <div>
+                                                <span className="text-ink-500">吊装负责人</span>
+                                                <p className="font-semibold text-ink-800">{record.actual.operator ?? '—'}</p>
+                                              </div>
+                                              <div>
+                                                <span className="text-ink-500">吊装用时</span>
+                                                <p className="font-semibold text-ink-800">
+                                                  {record.actual.lift_duration_min != null ? `${record.actual.lift_duration_min} 分钟` : '—'}
+                                                </p>
+                                              </div>
+                                              <div>
+                                                <span className="text-ink-500">复核人</span>
+                                                <p className="font-semibold text-ink-800">{record.actual.reviewer ?? '—'}</p>
+                                              </div>
+                                              {record.actual.review_result && (
+                                                <div className="col-span-2">
+                                                  <span className="text-ink-500">复核结论</span>
+                                                  <p className="font-semibold text-ink-800">{record.actual.review_result}</p>
+                                                </div>
+                                              )}
+                                              {record.actual.notes && (
+                                                <div className="col-span-2">
+                                                  <span className="text-ink-500">现场备注</span>
+                                                  <p className="text-ink-700 bg-white/70 rounded border border-ink-100 px-2 py-1 mt-0.5">
+                                                    {record.actual.notes}
+                                                  </p>
+                                                </div>
+                                              )}
+                                            </div>
                                           </div>
                                         )}
                                       </div>
@@ -501,6 +614,15 @@ export default function Construction() {
           </div>
         </div>
       </div>
+      <ConstructionBriefingModal
+        open={showBriefing}
+        onClose={() => setShowBriefing(false)}
+        projectId={currentPrj.id}
+        schemeId={scheme.id}
+        steps={steps}
+        placedStones={placed}
+        stoneMap={stoneMap}
+      />
     </div>
   );
 }
