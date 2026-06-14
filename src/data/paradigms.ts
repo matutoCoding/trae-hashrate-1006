@@ -1,0 +1,243 @@
+import type { Paradigm } from '@/types/paradigm';
+
+export const DEFAULT_PARADIGMS: Paradigm[] = [
+  {
+    id: 'par_001',
+    name: '环秀山庄主山骨架',
+    garden: '苏州环秀山庄',
+    dynasty: '清乾隆年间',
+    style: '环秀山庄式',
+    difficulty: 5,
+    height_m: 7.2,
+    base_dimensions: { length_cm: 900, width_cm: 500 },
+    estimated_weight_ton: 210,
+    stone_count: 68,
+    layers: [
+      { layer_type: '基础层', name: '桩基与座石', height_ratio: 0.12, stones: [
+        { stone_code: 'A01', role: '压脚', relative_weight_ratio: 2.5, relative_position: { x: 0.1, y: 0.5, z: 0 }, support_type: '叠', aesthetic_notes: '大块黄石为基，稳如磐石' },
+        { stone_code: 'A02', role: '压脚', relative_weight_ratio: 2.3, relative_position: { x: 0.9, y: 0.5, z: 0 }, support_type: '叠', aesthetic_notes: '对称布石，奠定重心' },
+      ]},
+      { layer_type: '主山层', name: '主峰与峭壁', height_ratio: 0.45, stones: [
+        { stone_code: 'B01', role: '主山', relative_weight_ratio: 1.8, relative_position: { x: 0.35, y: 0.5, z: 0.15 }, support_type: '竖', aesthetic_notes: '太湖石主峰，高耸雄浑' },
+        { stone_code: 'B02', role: '挑石', relative_weight_ratio: 0.9, relative_position: { x: 0.55, y: 0.5, z: 0.28 }, support_type: '挑', aesthetic_notes: '飞挑出岫，势如雄鹰展翅' },
+      ]},
+      { layer_type: '中层', name: '洞壑与蹬道', height_ratio: 0.28, stones: [
+        { stone_code: 'C01', role: '洞门', relative_weight_ratio: 0.7, relative_position: { x: 0.4, y: 0.5, z: 0.5 }, support_type: '横', aesthetic_notes: '构成拱券式洞门，穿行游赏' },
+      ]},
+      { layer_type: '顶峦层', name: '顶峦收顶', height_ratio: 0.15, stones: [
+        { stone_code: 'D01', role: '配石', relative_weight_ratio: 0.3, relative_position: { x: 0.4, y: 0.5, z: 0.85 }, support_type: '安', aesthetic_notes: '玲珑小石点题，收束全局' },
+      ]},
+    ],
+    score_overall: 96.5, score_thin: 92, score_wrinkle: 98, score_leak: 97, score_through: 95,
+    description: '戈裕良传世杰作，以卷洞技法著称。山势回旋，有"尺幅千里"之概。主峰高耸，次峰拱揖，洞壑幽深，蹬道盘纡，为湖石假山之冠。',
+    techniques: ['钩带法拱券', '大小石相间', '一石三居', '竖纹取势', '错缝咬合'],
+    key_points: ['基础深入地面60cm，用糯米汁拌石灰', '洞顶采用钩带法，不用梁板', '主峰偏于一侧，避免居中呆板', '挑石后配重为前出3倍以上'],
+    image_thumb: 'hs_01',
+    is_custom: false,
+    created_at: Date.now() - 86400000 * 30,
+  },
+  {
+    id: 'par_002',
+    name: '片石山房九狮山',
+    garden: '扬州片石山房',
+    dynasty: '清康熙年间',
+    style: '片石山房式',
+    difficulty: 4,
+    height_m: 5.5,
+    base_dimensions: { length_cm: 700, width_cm: 420 },
+    estimated_weight_ton: 140,
+    stone_count: 52,
+    layers: [
+      { layer_type: '基础层', name: '水畔基座', height_ratio: 0.1, stones: [
+        { stone_code: 'A1', role: '压脚', relative_weight_ratio: 2.0, relative_position: { x: 0.15, y: 0.6, z: 0 }, support_type: '叠', aesthetic_notes: '临水斜立，水石相映' },
+      ]},
+      { layer_type: '主山层', name: '奇峰罗列', height_ratio: 0.55, stones: [
+        { stone_code: 'B1', role: '主山', relative_weight_ratio: 1.5, relative_position: { x: 0.4, y: 0.5, z: 0.15 }, support_type: '竖', aesthetic_notes: '形如九狮盘踞，故名' },
+      ]},
+      { layer_type: '顶峦层', name: '峰顶点睛', height_ratio: 0.18, stones: [
+        { stone_code: 'D1', role: '配石', relative_weight_ratio: 0.25, relative_position: { x: 0.45, y: 0.5, z: 0.88 }, support_type: '安', aesthetic_notes: '小石点顶，似兽昂首' },
+      ]},
+    ],
+    score_overall: 93, score_thin: 95, score_wrinkle: 94, score_leak: 90, score_through: 92,
+    description: '石涛和尚"人间孤本"，以九狮象形闻名。峰势奇峭，皴纹繁密，横看成岭侧成峰。',
+    techniques: ['象形堆叠', '皴纹连贯', '虚实相生', '一水两岸'],
+    key_points: ['九石组合象形，远观群狮嬉戏', '多从侧面观赏，避免正面直对', '水畔基座略低，衬托山势'],
+    image_thumb: 'hs_02',
+    is_custom: false,
+    created_at: Date.now() - 86400000 * 25,
+  },
+  {
+    id: 'par_003',
+    name: '豫园大假山',
+    garden: '上海豫园',
+    dynasty: '明嘉靖年间',
+    style: '豫园式',
+    difficulty: 4,
+    height_m: 12,
+    base_dimensions: { length_cm: 1800, width_cm: 800 },
+    estimated_weight_ton: 520,
+    stone_count: 2000,
+    layers: [
+      { layer_type: '基础层', name: '武康黄石基础', height_ratio: 0.1, stones: [
+        { stone_code: 'A0', role: '压脚', relative_weight_ratio: 3.0, relative_position: { x: 0.5, y: 0.5, z: 0 }, support_type: '叠', aesthetic_notes: '大块武康黄石，纵横错叠' },
+      ]},
+           { layer_type: '主山层', name: '峭壁与幽谷', height_ratio: 0.5, stones: [
+        { stone_code: 'B1', role: '主山', relative_weight_ratio: 2.0, relative_position: { x: 0.5, y: 0.5, z: 0.15 }, support_type: '叠', aesthetic_notes: '黄石叠山，气势磅礴' },
+      ]},
+      { layer_type: '中层', name: '流觞曲水', height_ratio: 0.25, stones: [
+        { stone_code: 'C1', role: '踏步', relative_weight_ratio: 0.5, relative_position: { x: 0.5, y: 0.5, z: 0.55 }, support_type: '安', aesthetic_notes: '山涧蹬道，曲折回环' },
+      ]},
+      { layer_type: '顶峦层', name: '望江亭收顶', height_ratio: 0.15, stones: [
+        { stone_code: 'D1', role: '配石', relative_weight_ratio: 0.2, relative_position: { x: 0.5, y: 0.5, z: 0.88 }, support_type: '安', aesthetic_notes: '亭下点石，供人远眺' },
+      ]},
+    ],
+    score_overall: 94, score_thin: 85, score_wrinkle: 96, score_leak: 88, score_through: 92,
+    description: '明代叠山大家张南阳手笔，江南现存最大黄石假山。高12米，周60米，气势磅礴，有"城市山林"之誉。',
+    techniques: ['黄石拼叠', '横纹错叠', '竖向收分', '蹬道盘纡', '瀑布预留'],
+    key_points: ['武康黄石，色如古铜', '堆叠采用"大卧小立"手法', '留瀑布水道，雨时可观飞流', '山洞用"合榫"法，不用粘合'],
+    image_thumb: 'hs_03',
+    is_custom: false,
+    created_at: Date.now() - 86400000 * 20,
+  },
+  {
+    id: 'par_004',
+    name: '个园四季假山',
+    garden: '扬州个园',
+    dynasty: '清嘉庆年间',
+    style: '个园式',
+    difficulty: 5,
+    height_m: 6,
+    base_dimensions: { length_cm: 2400, width_cm: 600 },
+    estimated_weight_ton: 380,
+    stone_count: 600,
+    layers: [
+      { layer_type: '主山层', name: '春山(石笋)', height_ratio: 0.3, stones: [
+        { stone_code: 'SP1', role: '主山', relative_weight_ratio: 0.6, relative_position: { x: 0.1, y: 0.5, z: 0.2 }, support_type: '竖', aesthetic_notes: '石笋破土，春笋初发' },
+      ]},
+      { layer_type: '主山层', name: '夏山(太湖石)', height_ratio: 0.35, stones: [
+        { stone_code: 'SM1', role: '主山', relative_weight_ratio: 1.2, relative_position: { x: 0.35, y: 0.5, z: 0.18 }, support_type: '叠', aesthetic_notes: '太湖石镂空，夏云舒卷' },
+      ]},
+      { layer_type: '主山层', name: '秋山(黄石)', height_ratio: 0.4, stones: [
+        { stone_code: 'AU1', role: '主山', relative_weight_ratio: 1.8, relative_position: { x: 0.6, y: 0.5, z: 0.15 }, support_type: '叠', aesthetic_notes: '黄石丹枫，秋色正浓' },
+      ]},
+      { layer_type: '主山层', name: '冬山(宣石)', height_ratio: 0.2, stones: [
+        { stone_code: 'WN1', role: '主山', relative_weight_ratio: 0.5, relative_position: { x: 0.88, y: 0.5, z: 0.2 }, support_type: '叠', aesthetic_notes: '宣石皑皑，冬雪未消' },
+      ]},
+    ],
+    score_overall: 95, score_thin: 90, score_wrinkle: 92, score_leak: 94, score_through: 96,
+    description: '以四季石景闻名，"春山淡冶而如笑，夏山苍翠而如滴，秋山明净而如妆，冬山惨淡而如睡"。一园之内，遍历四时。',
+    techniques: ['石笋法迎春', '湖石法构夏', '黄石法染秋', '宣石法筑冬', '漏窗借景法'],
+    key_points: ['春山竹石相配，修篁成林', '夏山洞中纳凉，配以荷池', '秋山登高望远，丹枫相映', '冬山二十四风洞，寒风瑟瑟'],
+    image_thumb: 'hs_04',
+    is_custom: false,
+    created_at: Date.now() - 86400000 * 15,
+  },
+  {
+    id: 'par_005',
+    name: '岭南余荫山房',
+    garden: '广州余荫山房',
+    dynasty: '清同治年间',
+    style: '岭南式',
+    difficulty: 3,
+    height_m: 3.8,
+    base_dimensions: { length_cm: 500, width_cm: 300 },
+    estimated_weight_ton: 65,
+    stone_count: 38,
+    layers: [
+      { layer_type: '基础层', name: '珊瑚石基础', height_ratio: 0.1, stones: [
+        { stone_code: 'A1', role: '压脚', relative_weight_ratio: 1.5, relative_position: { x: 0.5, y: 0.5, z: 0 }, support_type: '叠', aesthetic_notes: '岭南珊瑚石，多孔通透' },
+      ]},
+      { layer_type: '主山层', name: '英石主峰', height_ratio: 0.5, stones: [
+        { stone_code: 'B1', role: '主山', relative_weight_ratio: 1.0, relative_position: { x: 0.5, y: 0.5, z: 0.12 }, support_type: '竖', aesthetic_notes: '英石嶙峋，瘦硬通神' },
+      ]},
+    ],
+    score_overall: 88, score_thin: 94, score_wrinkle: 90, score_leak: 85, score_through: 82,
+    description: '岭南园林代表，以英石、珊瑚石叠山，精巧玲珑，小巧雅致，与庭园建筑相得益彰。',
+    techniques: ['英石构山', '珊瑚垫底', '通透见天', '贴墙叠山'],
+    key_points: ['岭南多雨，宜用硬质英石', '假山贴墙而筑，节省空间', '山顶多植花木，四季常青'],
+    image_thumb: 'hs_05',
+    is_custom: false,
+    created_at: Date.now() - 86400000 * 10,
+  },
+  {
+    id: 'par_006',
+    name: '颐和园谐趣园',
+    garden: '北京颐和园',
+    dynasty: '清乾隆年间',
+    style: '北方皇家',
+    difficulty: 4,
+    height_m: 5,
+    base_dimensions: { length_cm: 1200, width_cm: 700 },
+    estimated_weight_ton: 280,
+    stone_count: 180,
+    layers: [
+      { layer_type: '基础层', name: '青石基座', height_ratio: 0.12, stones: [
+        { stone_code: 'A1', role: '压脚', relative_weight_ratio: 2.8, relative_position: { x: 0.5, y: 0.5, z: 0 }, support_type: '叠', aesthetic_notes: '北方青石，敦厚稳重' },
+      ]},
+      { layer_type: '主山层', name: '北太湖石主峰', height_ratio: 0.5, stones: [
+        { stone_code: 'B1', role: '主山', relative_weight_ratio: 2.2, relative_position: { x: 0.4, y: 0.5, z: 0.15 }, support_type: '竖', aesthetic_notes: '北太湖石，浑厚大气' },
+      ]},
+      { layer_type: '中层', name: '配石围合', height_ratio: 0.25, stones: [
+        { stone_code: 'C1', role: '副山', relative_weight_ratio: 0.8, relative_position: { x: 0.7, y: 0.5, z: 0.35 }, support_type: '叠', aesthetic_notes: '群峰环抱，气象恢宏' },
+      ]},
+    ],
+    score_overall: 90, score_thin: 82, score_wrinkle: 88, score_leak: 86, score_through: 90,
+    description: '皇家园林叠山代表，体量宏大，气势雄浑。北太湖石与青石并用，既有江南之秀，又具北方之雄。',
+    techniques: ['大基座稳山', '群峰环抱式', '皇家规制', '青石铺底'],
+    key_points: ['基座扩大至山高1.5倍', '主峰居中，配山对称', '山石包浆厚重，古意盎然'],
+    image_thumb: 'hs_06',
+    is_custom: false,
+    created_at: Date.now() - 86400000 * 5,
+  },
+];
+
+export const DEFAULT_STONES = [
+  {
+    id: 'st_001', code: 'TS-A001', name: '云骨峰', material: 'TAIHU' as const,
+    weight_kg: 680, length_cm: 120, width_cm: 75, height_cm: 165, volume_cm3: 1_020_000,
+    thinness: 9.2, wrinkle: 8.8, porosity: 8.5, complexity: 9.0, edges: 7.5,
+    texture_dir: '纵向主皴', notes: '主峰首选，高耸挺拔，有凌云之势', created_at: Date.now() - 86400000,
+  },
+  {
+    id: 'st_002', code: 'TS-A002', name: '卧虎石', material: 'TAIHU' as const,
+    weight_kg: 1250, length_cm: 200, width_cm: 110, height_cm: 85, volume_cm3: 1_580_000,
+    thinness: 5.5, wrinkle: 7.2, porosity: 6.8, complexity: 6.5, edges: 5.8,
+    texture_dir: '横向水浪纹', notes: '基础层压脚石，宽大沉稳', created_at: Date.now() - 86400000 * 2,
+  },
+  {
+    id: 'st_003', code: 'TS-A003', name: '飞檐挑', material: 'YING' as const,
+    weight_kg: 320, length_cm: 140, width_cm: 50, height_cm: 55, volume_cm3: 320_000,
+    thinness: 8.8, wrinkle: 9.4, porosity: 5.2, complexity: 8.0, edges: 9.2,
+    texture_dir: '斜向劈斧皴', notes: '挑石用，一端出挑，如鸟飞翼', created_at: Date.now() - 86400000 * 3,
+  },
+  {
+    id: 'st_004', code: 'TS-B001', name: '磐陀座', material: 'HUANG' as const,
+    weight_kg: 980, length_cm: 150, width_cm: 95, height_cm: 90, volume_cm3: 1_180_000,
+    thinness: 4.8, wrinkle: 6.5, porosity: 3.8, complexity: 5.0, edges: 6.0,
+    texture_dir: '横纹叠层', notes: '黄石基座，稳如泰山', created_at: Date.now() - 86400000 * 4,
+  },
+  {
+    id: 'st_005', code: 'TS-B002', name: '玲珑岫', material: 'TAIHU' as const,
+    weight_kg: 450, length_cm: 95, width_cm: 60, height_cm: 115, volume_cm3: 520_000,
+    thinness: 8.5, wrinkle: 9.0, porosity: 9.5, complexity: 8.8, edges: 7.0,
+    texture_dir: '四面通透', notes: '副山配石，多孔玲珑', created_at: Date.now() - 86400000 * 5,
+  },
+  {
+    id: 'st_006', code: 'TS-C001', name: '灵璧磬', material: 'LINGBI' as const,
+    weight_kg: 560, length_cm: 85, width_cm: 70, height_cm: 130, volume_cm3: 520_000,
+    thinness: 8.0, wrinkle: 9.6, porosity: 4.2, complexity: 8.5, edges: 8.8,
+    texture_dir: '竖纹细密', notes: '立峰用，叩之有声，音清越', created_at: Date.now() - 86400000 * 6,
+  },
+  {
+    id: 'st_007', code: 'TS-D001', name: '垂云岫', material: 'TAIHU' as const,
+    weight_kg: 280, length_cm: 90, width_cm: 55, height_cm: 75, volume_cm3: 310_000,
+    thinness: 9.0, wrinkle: 8.2, porosity: 9.0, complexity: 8.4, edges: 6.5,
+    texture_dir: '自然曲折', notes: '中层点缀石，造型灵动', created_at: Date.now() - 86400000 * 7,
+  },
+  {
+    id: 'st_008', code: 'TS-E001', name: '顶巅小品', material: 'YING' as const,
+    weight_kg: 120, length_cm: 55, width_cm: 38, height_cm: 70, volume_cm3: 110_000,
+    thinness: 9.5, wrinkle: 9.2, porosity: 7.8, complexity: 9.2, edges: 8.5,
+    texture_dir: '四面皴纹', notes: '收顶小峰，画龙点睛', created_at: Date.now() - 86400000 * 8,
+  },
+];

@@ -1,0 +1,153 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', SimSun, serif;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #1a1a2e;
+  background-color: #f5f1e8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+@layer components {
+  .scroll-card {
+    @apply bg-ink-50 rounded-lg shadow-scroll border border-ink-200/60 overflow-hidden;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  }
+
+  .ink-btn {
+    @apply px-4 py-2 rounded-md bg-ink-800 text-ink-50 font-medium
+           hover:bg-ink-700 active:bg-ink-900
+           transition-all duration-200 ease-out
+           shadow-sm hover:shadow-md
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .stoneblue-btn {
+    @apply px-4 py-2 rounded-md bg-stoneblue-600 text-white font-medium
+           hover:bg-stoneblue-500 active:bg-stoneblue-700
+           transition-all duration-200 ease-out
+           shadow-sm hover:shadow-md
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .ochre-btn {
+    @apply px-4 py-2 rounded-md bg-ochre-600 text-white font-medium
+           hover:bg-ochre-500 active:bg-ochre-700
+           transition-all duration-200 ease-out
+           shadow-sm hover:shadow-md
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .ghost-btn {
+    @apply px-4 py-2 rounded-md border border-ink-300 text-ink-700 font-medium
+           hover:bg-ink-100 hover:border-ink-400
+           transition-all duration-200 ease-out
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .ink-input {
+    @apply w-full px-3 py-2 rounded-md bg-white/80 border border-ink-200
+           focus:border-stoneblue-500 focus:ring-2 focus:ring-stoneblue-500/20
+           outline-none transition-all duration-150
+           placeholder:text-ink-400;
+  }
+
+  .ink-label {
+    @apply block text-sm font-medium text-ink-700 mb-1;
+  }
+
+  .seal-pass {
+    @apply inline-flex items-center justify-center w-14 h-14 rounded
+           bg-pine-500/90 text-white font-bold rotate-[-4deg]
+           shadow-seal border-2 border-pine-400
+           text-[10px] leading-tight text-center;
+  }
+
+  .seal-warn {
+    @apply inline-flex items-center justify-center w-14 h-14 rounded
+           bg-ochre-500/90 text-white font-bold rotate-[3deg]
+           shadow-seal border-2 border-ochre-400
+           text-[10px] leading-tight text-center;
+  }
+
+  .seal-danger {
+    @apply inline-flex items-center justify-center w-14 h-14 rounded
+           bg-cinnabar-500/90 text-white font-bold rotate-[-2deg]
+           shadow-seal border-2 border-cinnabar-400
+           text-[10px] leading-tight text-center;
+  }
+
+  .section-title {
+    @apply font-song text-xl font-bold text-ink-900 mb-4 pb-2
+           border-b-2 border-ochre-400/50;
+  }
+
+  .sub-title {
+    @apply font-song text-lg font-semibold text-ink-800 mb-3;
+  }
+
+  .stat-pill {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full
+           text-xs font-medium;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e8e2d4;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #9a8a6a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7d6c4d;
+}
+
+@keyframes inkFadeIn {
+  from { opacity: 0; transform: translateY(8px); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.ink-fade {
+  animation: inkFadeIn 0.4s ease-out both;
+}
+
+@keyframes sealPop {
+  0% { transform: scale(0) rotate(-15deg); opacity: 0; }
+  60% { transform: scale(1.15) rotate(5deg); }
+  100% { transform: scale(1) rotate(-4deg); opacity: 1; }
+}
+
+.seal-pop {
+  animation: sealPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
