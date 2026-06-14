@@ -6,8 +6,8 @@ import { computeCenterOfGravity } from '@/utils/geometry';
 import { computeAestheticScore } from '@/utils/aesthetics';
 import RadarChart from '@/components/RadarChart';
 import SealStamp from '@/components/SealStamp';
-import { MATERIAL_NAMES, type StoneSupportType } from '@/types/stone';
-import { Plus, Layers, Trash2, Calculator, Crosshair, MapPin, RefreshCw, Zap } from 'lucide-react';
+import { MATERIAL_NAMES, type StoneSupportType, type StackLayer } from '@/types/stone';
+import { Plus, Layers, Trash2, Calculator, Crosshair, MapPin, RefreshCw, Zap, X } from 'lucide-react';
 
 const LAYER_TYPES: Array<{ type: '基础层' | '主山层' | '中层' | '顶峦层' | '配石层'; color: string; icon: string }> = [
   { type: '基础层', color: 'from-ochre-600 to-ochre-700', icon: '基' },
@@ -32,6 +32,21 @@ export default function CenterOfGravity() {
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [selectedPlaced, setSelectedPlaced] = useState<string | null>(null);
   const [view, setView] = useState<'x' | 'y'>('x');
+  const [showAddLayer, setShowAddLayer] = useState(false);
+  const [newLayerType, setNewLayerType] = useState<StackLayer['layer_type']>('中层');
+  const [newLayerName, setNewLayerName] = useState('');
+  const [newLayerBaseZ, setNewLayerBaseZ] = useState(150);
+
+  const submitAddLayer = () => {
+    const nm = newLayerName.trim() || `${newLayerType}-${layers.length + 1}`;
+    store.addLayer(newLayerType, nm, newLayerBaseZ);
+    setShowAddLayer(false);
+    setNewLayerName('');
+    setNewLayerType('中层');
+    const total = placed.length > 0 ? Math.max(...placed.map(p => p.pos_z + (stoneMap.get(p.stone_id)?.height_cm ?? 0))) : 0;
+    setNewLayerBaseZ(Math.round(total + 30));
+    console.log(`%c✅ 已新增层「${nm}」，请在左侧层次列表展开后添加湖石。`, 'color:#2563eb;font-weight:bold');
+  };
 
   useEffect(() => {
     if (layers.length === 0) {
@@ -65,40 +80,74 @@ export default function CenterOfGravity() {
   const addDemoStones = () => {
     if (placed.length > 0) {
       if (!confirm('将清除现有堆叠，继续吗？')) return;
-      store.clearScheme();
-      const l1 = store.addLayer('基础层', '基座层');
-      const l2 = store.addLayer('主山层', '主峰层');
-      const l3 = store.addLayer('中层', '配石中层');
-      const l4 = store.addLayer('顶峦层', '收顶层');
-
-      const p1 = store.placeStone({ stone_id: stones[1]?.id ?? stones[0].id, layer_id: l1.id, pos_x: 50, pos_y: 120, pos_z: 0, support_type: '叠' });
-      const p2 = store.placeStone({ stone_id: stones[3]?.id ?? stones[0].id, layer_id: l1.id, pos_x: 380, pos_y: 120, pos_z: 0, support_type: '叠' });
-      const p3 = store.placeStone({ stone_id: stones[0]?.id ?? stones[0].id, layer_id: l2.id, pos_x: 200, pos_y: 140, pos_z: 85, support_type: '竖', supported_by: [p1.id, p2.id] });
-      store.placeStone({ stone_id: stones[2]?.id ?? stones[0].id, layer_id: l3.id, pos_x: 350, pos_y: 150, pos_z: 210, support_type: '挑', supported_by: [p3.id], has_tie: true, has_grout: true });
-      store.placeStone({ stone_id: stones[7]?.id ?? stones[0].id, layer_id: l4.id, pos_x: 220, pos_y: 140, pos_z: 330, support_type: '安', supported_by: [p3.id] });
-    } else {
-      const layerIds = layers.map(l => l.id);
-      const available = stones.slice(0, 8);
-      const positions = [
-        { x: 50, y: 120, z: 0, s: '叠' },
-        { x: 380, y: 120, z: 0, s: '叠' },
-        { x: 200, y: 140, z: 85, s: '竖' },
-        { x: 350, y: 150, z: 210, s: '挑' },
-        { x: 220, y: 140, z: 330, s: '安' },
-      ];
-      for (let i = 0; i < Math.min(positions.length, available.length); i++) {
-        const pos = positions[i];
-        const lidx = Math.min(i, layerIds.length - 1);
-        store.placeStone({
-          stone_id: available[i].id, layer_id: layerIds[lidx],
-          pos_x: pos.x, pos_y: pos.y, pos_z: pos.z,
-          support_type: pos.s as StoneSupportType,
-          supported_by: i > 1 ? [placed[0]?.id].filter(Boolean) as string[] : [],
-          has_tie: pos.s === '挑',
-          has_grout: i >= 2,
-        });
-      }
     }
+    store.clearScheme();
+    const l1 = store.addLayer('基础层', '基座层');
+    const l2 = store.addLayer('主山层', '主峰层');
+    const l3 = store.addLayer('中层', '配石中层');
+    const l4 = store.addLayer('顶峦层', '收顶层');
+
+    const sBase = stones[1] ?? stones[0];
+    const sBase2 = stones[3] ?? stones[0];
+    const sMain = stones[0] ?? stones[0];
+    const sOver = stones[2] ?? stones[0];
+    const sTop = stones[7] ?? stones[0];
+
+    // 压脚石1（左）
+    const p1 = store.placeStone({
+      stone_id: sBase.id, layer_id: l1.id,
+      pos_x: 50, pos_y: 120, pos_z: 0,
+      support_type: '叠',
+      contact_points: [
+        { x: 50 + sBase.length_cm * 0.3, y: 120 + sBase.width_cm * 0.2, z: sBase.height_cm, area_cm2: 85 },
+        { x: 50 + sBase.length_cm * 0.7, y: 120 + sBase.width_cm * 0.5, z: sBase.height_cm, area_cm2: 92 },
+        { x: 50 + sBase.length_cm * 0.5, y: 120 + sBase.width_cm * 0.8, z: sBase.height_cm, area_cm2: 78 },
+      ],
+    });
+    // 压脚石2（右）
+    const p2 = store.placeStone({
+      stone_id: sBase2.id, layer_id: l1.id,
+      pos_x: 380, pos_y: 120, pos_z: 0,
+      support_type: '叠',
+      contact_points: [
+        { x: 380 + sBase2.length_cm * 0.3, y: 120 + sBase2.width_cm * 0.3, z: sBase2.height_cm, area_cm2: 95 },
+        { x: 380 + sBase2.length_cm * 0.7, y: 120 + sBase2.width_cm * 0.5, z: sBase2.height_cm, area_cm2: 88 },
+      ],
+    });
+    // 主山石（竖）
+    const p3 = store.placeStone({
+      stone_id: sMain.id, layer_id: l2.id,
+      pos_x: 200, pos_y: 140, pos_z: 85,
+      support_type: '竖', supported_by: [p1.id, p2.id],
+      has_grout: true,
+      contact_points: [
+        { x: 210, y: 155, z: 85, area_cm2: 65 },
+        { x: 280, y: 175, z: 85, area_cm2: 72 },
+        { x: 230, y: 190, z: 85, area_cm2: 58 },
+      ],
+    });
+    // 挑石
+    store.placeStone({
+      stone_id: sOver.id, layer_id: l3.id,
+      pos_x: 350, pos_y: 150, pos_z: 210,
+      support_type: '挑', supported_by: [p3.id],
+      has_tie: true, has_grout: true,
+      contact_points: [
+        { x: 355, y: 160, z: 210, area_cm2: 45 },
+        { x: 380, y: 170, z: 210, area_cm2: 40 },
+      ],
+    });
+    // 顶巅小品
+    store.placeStone({
+      stone_id: sTop.id, layer_id: l4.id,
+      pos_x: 220, pos_y: 140, pos_z: 330,
+      support_type: '安', supported_by: [p3.id],
+      has_grout: true,
+      contact_points: [
+        { x: 230, y: 155, z: 330, area_cm2: 32 },
+        { x: 250, y: 162, z: 330, area_cm2: 28 },
+      ],
+    });
   };
 
   return (
@@ -114,7 +163,11 @@ export default function CenterOfGravity() {
             <ActionButton icon={Calculator} variant="secondary">
               方案设置
             </ActionButton>
-            <ActionButton icon={Plus}>
+            <ActionButton icon={Plus} onClick={() => {
+              const total = placed.length > 0 ? Math.max(...placed.map(p => p.pos_z + (stoneMap.get(p.stone_id)?.height_cm ?? 0))) : 0;
+              setNewLayerBaseZ(Math.round(total + 30));
+              setShowAddLayer(true);
+            }}>
               新增层
             </ActionButton>
           </>
@@ -212,8 +265,8 @@ export default function CenterOfGravity() {
                 { key: 'wrinkle', label: '皱', value: aesthetic.wrinkle },
                 { key: 'leak', label: '漏', value: aesthetic.leak },
                 { key: 'through', label: '透', value: aesthetic.through },
-                { key: 'harmony', label: '谐', value: aesthetic.harmony / 10 },
-              ]} reference={{ label: '环秀山庄', values: [9.2, 9.8, 9.7, 9.5, 9.5] }} size={220} max={10} />
+                { key: 'harmony', label: '谐', value: aesthetic.harmony },
+              ]} reference={{ label: '环秀山庄', values: [92, 98, 97, 95, 95] }} size={220} max={100} />
               <div className="mt-4 text-center">
                 <p className="text-xs text-ink-500">综合评分</p>
                 <p className="font-song font-bold text-3xl text-stoneblue-700">{aesthetic.overall}<span className="text-base text-ink-500">分</span></p>
@@ -488,6 +541,79 @@ export default function CenterOfGravity() {
             })()}
           </div>
         </div>
+
+        {/* 新增层弹窗 */}
+        {showAddLayer && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-ink-50 w-full max-w-lg rounded-3xl shadow-2xl border border-ink-200 overflow-hidden animate-fadeIn">
+              <div className="px-6 py-4 border-b border-ink-200 flex items-center justify-between bg-gradient-to-r from-ochre-500 to-stoneblue-600">
+                <h3 className="font-bold font-song text-xl text-white flex items-center gap-2">
+                  <Layers className="w-5 h-5" />新增堆叠层
+                </h3>
+                <button onClick={() => setShowAddLayer(false)} className="p-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-5">
+                <div>
+                  <label className="text-sm font-semibold text-ink-700 block mb-2">层类型 *</label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {LAYER_TYPES.map(lt => (
+                      <button key={lt.type} onClick={() => setNewLayerType(lt.type)}
+                        className={`p-3 rounded-xl text-sm font-bold transition-all border-2 ${
+                          newLayerType === lt.type
+                            ? `bg-gradient-to-br ${lt.color} text-white border-transparent shadow-md scale-105`
+                            : 'bg-white border-ink-200 text-ink-700 hover:border-ink-300'
+                        }`}>
+                        <div className="w-8 h-8 mx-auto rounded-full bg-white/20 flex items-center justify-center mb-1">{lt.icon}</div>
+                        {lt.type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-ink-700 block mb-1.5">层名称</label>
+                    <input
+                      value={newLayerName}
+                      onChange={e => setNewLayerName(e.target.value)}
+                      placeholder={`例：${newLayerType}-${layers.length + 1}`}
+                      className="w-full px-4 py-2.5 rounded-xl bg-white border border-ink-200 focus:border-stoneblue-500 focus:outline-none transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-ink-700 block mb-1.5">基准高度Z (cm)</label>
+                    <input
+                      type="number" min={0} step={5}
+                      value={newLayerBaseZ}
+                      onChange={e => setNewLayerBaseZ(Math.max(0, +e.target.value))}
+                      className="w-full px-4 py-2.5 rounded-xl bg-white border border-ink-200 focus:border-stoneblue-500 focus:outline-none transition font-mono"
+                    />
+                  </div>
+                </div>
+                <div className="p-3 bg-gradient-to-r from-pine-50 to-stoneblue-50 rounded-xl border border-ink-200 text-xs text-ink-600 space-y-1">
+                  <p>📌 <b className="text-ink-700">层布置规则</b>：</p>
+                  <ul className="list-disc pl-5 space-y-0.5">
+                    <li>基础层 (Z=0)：放置大吨位压脚石，奠定重心</li>
+                    <li>主山层：竖放主峰、横放峭壁等高差大的主体石</li>
+                    <li>中层：洞壑、蹬道、挑石、悬石、点缀配石</li>
+                    <li>顶峦层：收顶小品，重量宜轻，避免头重脚轻</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-ink-200 bg-ink-100/50 flex gap-3 justify-end">
+                <button onClick={() => setShowAddLayer(false)}
+                  className="px-5 py-2.5 rounded-xl bg-white border border-ink-200 text-ink-700 font-semibold hover:bg-ink-50 transition">
+                  取消
+                </button>
+                <button onClick={submitAddLayer}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-stoneblue-600 to-ink-700 text-white font-bold shadow hover:shadow-lg transition flex items-center gap-1.5">
+                  <Plus className="w-4 h-4" />确认新增
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

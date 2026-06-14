@@ -24,10 +24,10 @@ export function computeAestheticScore(
     sumComplexity += st.complexity;
     sumEdges += st.edges;
   }
-  const thin = +(sumThinness / stones.length).toFixed(1);
-  const wrinkle = +(sumWrinkle / stones.length).toFixed(1);
-  const leak = +(sumPorosity / stones.length).toFixed(1);
-  const through = +((sumComplexity + sumEdges) / (2 * stones.length)).toFixed(1);
+  const thin = +((sumThinness / stones.length) * 10).toFixed(1);
+  const wrinkle = +((sumWrinkle / stones.length) * 10).toFixed(1);
+  const leak = +((sumPorosity / stones.length) * 10).toFixed(1);
+  const through = +(((sumComplexity + sumEdges) / (2 * stones.length)) * 10).toFixed(1);
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, maxZ = 0;
   for (const { ps, st } of stones) {

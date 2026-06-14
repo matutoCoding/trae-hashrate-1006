@@ -134,7 +134,8 @@ export function computeContactStresses(
   for (const ps of placedStones) {
     const stone = stonesMap.get(ps.stone_id);
     if (!stone) continue;
-    if (ps.contact_points.length === 0 && ps.supported_by.length === 0) continue;
+    // 放宽：只要已放置就参与计算，避免用户未填contact_points却显示空表
+    // 没有支撑的基础层（基础压脚石）依然参与，只是以上传下传
 
     let totalArea = 0;
     if (ps.contact_points.length > 0) {

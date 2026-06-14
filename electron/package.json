@@ -1,0 +1,8 @@
+{
+  "name": "electron-main",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "private": true,
+  "description": "叠山营造 - Electron主进程(CommonJS)",
+  "main": "main.js"
+}

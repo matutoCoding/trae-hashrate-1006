@@ -295,10 +295,10 @@ export default function Construction() {
                       { key: 'wrinkle', label: '皱', value: aesthetic.wrinkle },
                       { key: 'leak', label: '漏', value: aesthetic.leak },
                       { key: 'through', label: '透', value: aesthetic.through },
-                      { key: 'harmony', label: '谐', value: aesthetic.harmony / 10 },
+                      { key: 'harmony', label: '谐', value: aesthetic.harmony },
                     ]}
                     size={180}
-                    max={10}
+                    max={100}
                   />
                 </div>
               </div>

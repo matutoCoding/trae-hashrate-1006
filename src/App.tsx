@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { useEffect } from 'react';
 import Sidebar from "@/components/layout/Sidebar";
 import StoneEntry from "@/pages/StoneEntry";
 import CenterOfGravity from "@/pages/CenterOfGravity";
@@ -6,9 +7,30 @@ import StressAnalysis from "@/pages/StressAnalysis";
 import Construction from "@/pages/Construction";
 import ParadigmLibrary from "@/pages/ParadigmLibrary";
 
+declare global {
+  interface Window {
+    dieshanDesktop?: {
+      isDesktop: boolean;
+      onNavigate: (cb: (route: string) => void) => (() => void);
+    };
+  }
+}
+
+function DesktopNavBridge() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (window.dieshanDesktop?.onNavigate) {
+      const unbind = window.dieshanDesktop.onNavigate((route) => navigate(route));
+      return unbind;
+    }
+  }, [navigate]);
+  return null;
+}
+
 export default function App() {
   return (
     <Router>
+      <DesktopNavBridge />
       <div className="flex min-h-screen bg-ink-100 font-song">
         <Sidebar />
         <main className="flex-1 min-w-0">

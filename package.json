@@ -1,14 +1,66 @@
 {
-  "name": "1006",
+  "name": "dieshan-stability-analyzer",
+  "productName": "古典园林叠石假山稳定性分析系统",
+  "version": "1.0.0",
+  "description": "面向园林叠山营造的桌面客户端生产力系统：堆叠受力计算、重心校核、审美评分、施工编排、范式传承",
+  "author": "叠山营造研究室",
+  "main": "electron/main.js",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "dev:vite": "vite",
+    "dev:electron": "wait-on http://localhost:5175 && electron .",
+    "dev": "concurrently -k \"npm:dev:vite\" \"npm:dev:electron\"",
+    "start": "npm run dev",
+    "check": "tsc -b --noEmit",
+    "build:web": "tsc -b && vite build",
+    "build:electron": "electron-builder",
+    "build": "npm run build:web && npm run build:electron",
     "preview": "vite preview",
-    "check": "tsc -b --noEmit"
+    "lint": "eslint ."
+  },
+  "build": {
+    "appId": "com.gardens.dieshan.stability",
+    "productName": "叠山营造",
+    "copyright": "Copyright © 2026 叠山营造研究室",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "artifactName": "叠山营造-${version}-${arch}.${ext}",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "叠山营造",
+      "runAfterFinish": true
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.graphics-design",
+      "icon": "build/icon.icns"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Graphics",
+      "icon": "build/icon.png"
+    }
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -27,16 +79,22 @@
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
     "babel-plugin-react-dev-locator": "^1.0.0",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^3.4.17",
+    "concurrently": "^10.0.3",
+    "cross-env": "^7.0.3",
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.30.1",
     "vite": "^6.3.5",
+    "vite-plugin-pwa": "^1.3.0",
     "vite-plugin-trae-solo-badge": "^1.0.0",
-    "vite-tsconfig-paths": "^5.1.4"
+    "vite-tsconfig-paths": "^5.1.4",
+    "wait-on": "^9.0.10"
   }
 }

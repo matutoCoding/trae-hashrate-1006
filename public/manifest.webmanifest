@@ -1,0 +1,55 @@
+{
+  "name": "古典园林叠石假山稳定性分析系统",
+  "short_name": "叠山营造",
+  "description": "面向园林叠山营造的桌面化生产力系统：堆叠受力计算、重心校核、审美评分、施工编排、范式传承",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "window-controls-overlay"],
+  "orientation": "landscape",
+  "background_color": "#f5f1e8",
+  "theme_color": "#3d4f5f",
+  "lang": "zh-CN",
+  "categories": ["productivity", "education", "design"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "叠石录入",
+      "short_name": "叠石录入",
+      "url": "/stones",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "重心校核",
+      "short_name": "重心校核",
+      "url": "/center-of-gravity",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "受力诊断",
+      "short_name": "受力诊断",
+      "url": "/stress-analysis",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "施工堆叠",
+      "short_name": "施工堆叠",
+      "url": "/construction",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "范式库",
+      "short_name": "范式库",
+      "url": "/paradigm",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ]
+}

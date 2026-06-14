@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import Header, { ActionButton } from '@/components/layout/Header';
 import { useStoneStore } from '@/store/stoneStore';
 import { useStackStore } from '@/store/stackStore';
-import { DEFAULT_PARADIGMS } from '@/data/paradigms';
+import { useParadigmStore } from '@/store/paradigmStore';
 import SealStamp from '@/components/SealStamp';
 import RadarChart from '@/components/RadarChart';
 import {
@@ -48,21 +48,21 @@ const DIFFICULTY_COLORS = [
 export default function ParadigmLibrary() {
   const { stones } = useStoneStore();
   const store = useStackStore();
+  const paradigmStore = useParadigmStore();
 
   const [filter, setFilter] = useState<string>('all');
   const [diffFilter, setDiffFilter] = useState<number>(0);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Paradigm | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [customParadigms, setCustomParadigms] = useState<Paradigm[]>([]);
   const [saveName, setSaveName] = useState('');
   const [saveStyle, setSaveStyle] = useState<Paradigm['style']>('苏州式');
   const [saveDiff, setSaveDiff] = useState<Paradigm['difficulty']>(3);
   const [saveDesc, setSaveDesc] = useState('');
 
   const allParadigms = useMemo(
-    () => [...DEFAULT_PARADIGMS, ...customParadigms],
-    [customParadigms]
+    () => paradigmStore.getAllParadigms(),
+    [paradigmStore]
   );
 
   const filtered = useMemo(() => {
@@ -151,15 +151,15 @@ export default function ParadigmLibrary() {
     }
 
     setSelected(p);
-    alert(`✅ 范式「${p.name}」载入完成！请到重心校核页查看堆叠。`);
+    console.log(`%c✅ 范式「${p.name}」载入完成！请到重心校核页查看堆叠。`, 'color:#059669;font-weight:bold');
   };
 
   const saveCurrentAsParadigm = () => {
     if (currentPlaced.length === 0) {
-      alert('当前方案没有堆叠内容，无法保存为范式');
+      console.log('%c当前方案没有堆叠内容，无法保存为范式', 'color:#dc2626');
       return;
     }
-    if (!saveName.trim()) { alert('请输入范式名称'); return; }
+    if (!saveName.trim()) { console.log('%c请输入范式名称', 'color:#dc2626'); return; }
 
     const totalW = currentPlaced.reduce((s, p) => s + (stones.find(st => st.id === p.stone_id)?.weight_kg ?? 0), 0);
     let maxZ = 0;
@@ -231,16 +231,15 @@ export default function ParadigmLibrary() {
       created_at: Date.now(),
     };
 
-    setCustomParadigms(prev => [...prev, newParadigm]);
+    paradigmStore.addCustomParadigm(newParadigm);
     setShowSaveModal(false);
     setSaveName('');
     setSaveDesc('');
-    alert('✅ 已保存为自定义范式！');
+    console.log('%c✅ 已保存为自定义范式！关闭应用重新打开也会保留。', 'color:#059669;font-weight:bold');
   };
 
   const deleteCustom = (id: string) => {
-    if (!confirm('删除此自定义范式？')) return;
-    setCustomParadigms(prev => prev.filter(p => p.id !== id));
+    paradigmStore.removeCustomParadigm(id);
     if (selected?.id === id) setSelected(null);
   };
 
@@ -248,7 +247,7 @@ export default function ParadigmLibrary() {
     <div className="flex-1 flex flex-col min-h-screen">
       <Header
         title="范式库"
-        subtitle={`经典堆叠骨架 · 收录 ${allParadigms.length} 种范式 · 自定义 ${customParadigms.length} 种`}
+        subtitle={`经典堆叠骨架 · 收录 ${allParadigms.length} 种范式 · 自定义 ${paradigmStore.customParadigms.length} 种`}
         actions={
           <>
             <ActionButton icon={BookOpen} variant="ghost">流派溯源</ActionButton>
@@ -502,15 +501,15 @@ export default function ParadigmLibrary() {
 
                     <RadarChart
                       dimensions={[
-                        { key: 'thin', label: '瘦', value: selected.score_thin / 10 },
-                        { key: 'wrinkle', label: '皱', value: selected.score_wrinkle / 10 },
-                        { key: 'leak', label: '漏', value: selected.score_leak / 10 },
-                        { key: 'through', label: '透', value: selected.score_through / 10 },
-                        { key: 'overall', label: '合', value: selected.score_overall / 10 },
+                        { key: 'thin', label: '瘦', value: selected.score_thin },
+                        { key: 'wrinkle', label: '皱', value: selected.score_wrinkle },
+                        { key: 'leak', label: '漏', value: selected.score_leak },
+                        { key: 'through', label: '透', value: selected.score_through },
+                        { key: 'overall', label: '合', value: selected.score_overall },
                       ]}
-                      reference={{ label: '经典线', values: [8.5, 8.5, 8.5, 8.5, 8.8] }}
+                      reference={{ label: '经典线', values: [85, 85, 85, 85, 88] }}
                       size={200}
-                      max={10}
+                      max={100}
                     />
 
                     <div className="space-y-3">
