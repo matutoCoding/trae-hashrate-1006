@@ -27,6 +27,16 @@ interface ConstructionState {
     layers: StackLayer[]
   ) => void;
 
+  cloneRecords: (
+    sourceProjectId: string,
+    sourceSchemeId: string,
+    destProjectId: string,
+    destSchemeId: string,
+    placedStoneIdMap: Map<string, string>
+  ) => void;
+
+  removeRecordsForProject: (projectId: string) => void;
+
   findRecord: (
     projectId: string,
     schemeId: string,
@@ -79,8 +89,6 @@ export const useConstructionStore = create<ConstructionState>()(
         const existing = get().records.filter(
           (r) => r.project_id === projectId && r.scheme_id === schemeId
         );
-        if (existing.length > 0) return;
-
         const layerMap = new Map(layers.map((l) => [l.id, l]));
 
         const sorted = [...placed].sort((a, b) => {
@@ -90,7 +98,16 @@ export const useConstructionStore = create<ConstructionState>()(
           return a.pos_z - b.pos_z;
         });
 
-        const records: ConstructionStepRecord[] = sorted.map((p, idx) => {
+        const existingMap = new Map(existing.map((r) => [r.placed_stone_id, r]));
+        const presentPlacedIds = new Set(placed.map((p) => p.id));
+
+        const toKeep = existing.filter((r) => presentPlacedIds.has(r.placed_stone_id));
+        const toAdd = sorted.filter((p) => !existingMap.has(p.id));
+
+        let maxStep = 0;
+        for (const r of toKeep) if (r.step_index > maxStep) maxStep = r.step_index;
+
+        const addRecords: ConstructionStepRecord[] = toAdd.map((p, idx) => {
           const stone = stoneMap.get(p.stone_id);
           const layer = layerMap.get(p.layer_id);
           return {
@@ -98,7 +115,7 @@ export const useConstructionStore = create<ConstructionState>()(
             project_id: projectId,
             scheme_id: schemeId,
             placed_stone_id: p.id,
-            step_index: idx + 1,
+            step_index: maxStep + idx + 1,
             planned: {
               stone_name: stone?.name ?? '未命名石',
               stone_code: stone?.code ?? '??',
@@ -115,8 +132,45 @@ export const useConstructionStore = create<ConstructionState>()(
           };
         });
 
-        set((s) => ({ records: [...s.records, ...records] }));
+        // 重新计算step_index按排序后的位置（保持已填记录顺序稳定，但按层/z排序）
+        const merged = [...toKeep, ...addRecords];
+        const sortedMerged = [...merged].sort((a, b) => {
+          const pa = placed.find((p) => p.id === a.placed_stone_id);
+          const pb = placed.find((p) => p.id === b.placed_stone_id);
+          if (!pa || !pb) return a.step_index - b.step_index;
+          const la = layerMap.get(pa.layer_id)?.layer_index ?? 99;
+          const lb = layerMap.get(pb.layer_id)?.layer_index ?? 99;
+          if (la !== lb) return la - lb;
+          return pa.pos_z - pb.pos_z;
+        });
+        const withFreshIndex = sortedMerged.map((r, i) => ({ ...r, step_index: i + 1 }));
+
+        set((s) => ({
+          records: [
+            ...s.records.filter(
+              (r) => !(r.project_id === projectId && r.scheme_id === schemeId)
+            ),
+            ...withFreshIndex,
+          ],
+        }));
       },
+
+      cloneRecords: (sourceProjectId, sourceSchemeId, destProjectId, destSchemeId, placedStoneIdMap) => {
+        const src = get().records.filter(
+          (r) => r.project_id === sourceProjectId && r.scheme_id === sourceSchemeId
+        );
+        const clones = src.map((r) => ({
+          ...r,
+          id: generateID('csr'),
+          project_id: destProjectId,
+          scheme_id: destSchemeId,
+          placed_stone_id: placedStoneIdMap.get(r.placed_stone_id) ?? r.placed_stone_id,
+        }));
+        set((s) => ({ records: [...s.records, ...clones] }));
+      },
+
+      removeRecordsForProject: (projectId) =>
+        set((s) => ({ records: s.records.filter((r) => r.project_id !== projectId) })),
 
       findRecord: (projectId, schemeId, placedStoneId) =>
         get().records.find(

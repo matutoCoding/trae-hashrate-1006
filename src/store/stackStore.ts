@@ -9,8 +9,13 @@ interface StackState {
   layers: StackLayer[];
   placedStones: PlacedStone[];
 
-  createScheme: (name: string, description?: string, baseL?: number, baseW?: number) => StackScheme;
+  createScheme: (projectId: string, name: string, description?: string, baseL?: number, baseW?: number) => StackScheme;
   setCurrentScheme: (id: string) => void;
+  getSchemesForProject: (projectId: string) => StackScheme[];
+  getSchemeForProject: (projectId: string) => StackScheme | null;
+  ensureSchemeForProject: (projectId: string, baseL?: number, baseW?: number) => StackScheme;
+
+  cloneSchemeForProject: (sourceProjectId: string, destProjectId: string, stoneIdMap: Map<string, string>) => { newSchemeId: string; placedStoneIdMap: Map<string, string> };
 
   addLayer: (layerType: StackLayer['layer_type'], name?: string, baseHeightCm?: number) => StackLayer;
   updateLayer: (id: string, data: Partial<StackLayer>) => void;
@@ -39,35 +44,16 @@ interface StackState {
 export const useStackStore = create<StackState>()(
   persist(
     (set, get) => {
-      const ensureScheme = () => {
-        if (get().schemes.length === 0) {
-          const scheme: StackScheme = {
-            id: generateID('sch'),
-            name: '新建假山方案',
-            description: '请输入方案描述',
-            base_length_cm: 600,
-            base_width_cm: 400,
-            created_at: Date.now(),
-            updated_at: Date.now(),
-          };
-          set({ schemes: [scheme], currentSchemeId: scheme.id });
-          return scheme;
-        }
-        if (!get().currentSchemeId) {
-          set({ currentSchemeId: get().schemes[0].id });
-        }
-        return get().schemes.find(s => s.id === get().currentSchemeId) ?? get().schemes[0];
-      };
-
       return {
         currentSchemeId: '',
         schemes: [],
         layers: [],
         placedStones: [],
 
-        createScheme: (name, description = '', baseL = 600, baseW = 400) => {
+        createScheme: (projectId, name, description = '', baseL = 600, baseW = 400) => {
           const scheme: StackScheme = {
             id: generateID('sch'),
+            project_id: projectId,
             name,
             description,
             base_length_cm: baseL,
@@ -84,8 +70,80 @@ export const useStackStore = create<StackState>()(
 
         setCurrentScheme: (id) => set({ currentSchemeId: id }),
 
+        getSchemesForProject: (projectId) =>
+          get().schemes.filter(s => s.project_id === projectId),
+
+        getSchemeForProject: (projectId) => {
+          const list = get().getSchemesForProject(projectId);
+          if (list.length === 0) return null;
+          const cur = list.find(s => s.id === get().currentSchemeId);
+          return cur ?? list[0];
+        },
+
+        ensureSchemeForProject: (projectId, baseL = 600, baseW = 400) => {
+          const existing = get().getSchemeForProject(projectId);
+          if (existing) {
+            if (get().currentSchemeId !== existing.id) set({ currentSchemeId: existing.id });
+            return existing;
+          }
+          return get().createScheme(projectId, `${projectId.slice(-4)}·堆叠方案`, '', baseL, baseW);
+        },
+
+        cloneSchemeForProject: (sourceProjectId, destProjectId, stoneIdMap) => {
+          const srcScheme = get().getSchemeForProject(sourceProjectId);
+          if (!srcScheme) {
+            const fresh = get().createScheme(destProjectId, `${destProjectId.slice(-4)}·堆叠方案`);
+            return { newSchemeId: fresh.id, placedStoneIdMap: new Map() };
+          }
+
+          const newSchemeId = generateID('sch');
+          const destScheme: StackScheme = {
+            ...srcScheme,
+            id: newSchemeId,
+            project_id: destProjectId,
+            name: `${srcScheme.name}（副本）`,
+            created_at: Date.now(),
+            updated_at: Date.now(),
+          };
+
+          const srcLayers = get().getLayersForScheme(srcScheme.id);
+          const layerIdMap = new Map<string, string>();
+          const destLayers = srcLayers.map(sl => {
+            const nl = generateID('lyr');
+            layerIdMap.set(sl.id, nl);
+            return { ...sl, id: nl, scheme_id: newSchemeId };
+          });
+
+          const srcPlaced = get().getPlacedForScheme(srcScheme.id);
+          const placedIdMap = new Map<string, string>();
+          const destPlaced = srcPlaced.map(sp => {
+            const np = generateID('pl');
+            placedIdMap.set(sp.id, np);
+            return {
+              ...sp,
+              id: np,
+              scheme_id: newSchemeId,
+              stone_id: stoneIdMap.get(sp.stone_id) ?? sp.stone_id,
+              layer_id: layerIdMap.get(sp.layer_id) ?? sp.layer_id,
+              supported_by: sp.supported_by.map(sid => placedIdMap.get(sid) ?? sid),
+            };
+          });
+
+          set((s) => ({
+            schemes: [...s.schemes, destScheme],
+            layers: [...s.layers, ...destLayers],
+            placedStones: [...s.placedStones, ...destPlaced],
+            currentSchemeId: newSchemeId,
+          }));
+          return { newSchemeId, placedStoneIdMap: placedIdMap };
+        },
+
         addLayer: (layerType, name, baseHeightCm = 0) => {
-          const scheme = ensureScheme();
+          const { schemes, currentSchemeId } = get();
+          const scheme = schemes.find(s => s.id === currentSchemeId) ?? schemes[0];
+          if (!scheme) {
+            throw new Error('No active scheme');
+          }
           const existing = get().layers.filter(l => l.scheme_id === scheme.id);
           const layer: StackLayer = {
             id: generateID('lyr'),
@@ -115,7 +173,8 @@ export const useStackStore = create<StackState>()(
           get().layers.filter(l => l.scheme_id === schemeId).sort((a, b) => a.layer_index - b.layer_index),
 
         placeStone: (data) => {
-          const scheme = ensureScheme();
+          const scheme = get().schemes.find(s => s.id === get().currentSchemeId) ?? get().schemes[0];
+          if (!scheme) throw new Error('No active scheme');
           const placed: PlacedStone = {
             id: generateID('pl'),
             scheme_id: scheme.id,

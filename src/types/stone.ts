@@ -9,6 +9,7 @@ export const MATERIAL_NAMES: Record<StoneMaterial, string> = {
 
 export interface Stone {
   id: string;
+  project_id: string;
   name: string;
   code: string;
   weight_kg: number;
@@ -66,6 +67,7 @@ export interface StackLayer {
 
 export interface StackScheme {
   id: string;
+  project_id: string;
   name: string;
   description: string;
   base_length_cm: number;

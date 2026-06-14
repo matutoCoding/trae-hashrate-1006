@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Project, ProjectStatus, ProjectFilter } from '@/types/project';
 import { generateID } from '@/utils/geometry';
+import { useStoneStore } from './stoneStore';
+import { useStackStore } from './stackStore';
+import { useConstructionStore } from './constructionStore';
+import { useReportStore } from './reportStore';
 
 interface ProjectState {
   projects: Project[];
@@ -105,6 +109,26 @@ export const useProjectStore = create<ProjectState>()(
           updated_at: Date.now(),
           metadata: { ...source.metadata, tags: [...(source.metadata.tags ?? [])] },
         };
+
+        // 1. clone石料 & 获得stone id映射
+        const stoneIdMap = useStoneStore.getState().cloneStonesForProject(sourceId, dup.id);
+
+        // 2. clone堆叠(层/摆放/支撑关系) & 获得placedStone id映射
+        const { newSchemeId, placedStoneIdMap } = useStackStore.getState().cloneSchemeForProject(
+          sourceId, dup.id, stoneIdMap
+        );
+
+        // 3. clone施工记录（用placedStone id映射）
+        const srcScheme = useStackStore.getState().getSchemeForProject(sourceId);
+        if (srcScheme) {
+          useConstructionStore.getState().cloneRecords(
+            sourceId, srcScheme.id, dup.id, newSchemeId, placedStoneIdMap
+          );
+          useReportStore.getState().cloneReportsForProject(
+            sourceId, srcScheme.id, dup.id, newSchemeId
+          );
+        }
+
         set((s) => ({
           projects: [...s.projects, dup],
           currentProjectId: dup.id,
@@ -153,6 +177,22 @@ export const useProjectStore = create<ProjectState>()(
         })),
 
       deleteProject: (id) => {
+        // 清理从属数据：石库/施工记录/校核报告
+        useStoneStore.getState().removeStonesForProject(id);
+        useConstructionStore.getState().removeRecordsForProject(id);
+        useReportStore.getState().removeReportsForProject(id);
+        // 清理堆叠方案及所属层/摆放
+        const ss = useStackStore.getState();
+        const relatedSchemes = ss.schemes.filter(sc => sc.project_id === id).map(sc => sc.id);
+        const allPlaced = ss.placedStones.filter(p => relatedSchemes.includes(p.scheme_id));
+        const allLayers = ss.layers.filter(l => relatedSchemes.includes(l.scheme_id));
+        // 注意 zustand 不能直接跨store set复杂字段，但可以对state做mutation（因为有immer？此处没有，需用setState）
+        useStackStore.setState({
+          schemes: ss.schemes.filter(sc => sc.project_id !== id),
+          layers: ss.layers.filter(l => !allLayers.includes(l)),
+          placedStones: ss.placedStones.filter(p => !allPlaced.includes(p)),
+        });
+
         const remain = get().projects.filter((p) => p.id !== id);
         const nextCurrent =
           remain.find((p) => p.id === get().currentProjectId && p.id !== id) ??

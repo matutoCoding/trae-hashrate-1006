@@ -16,6 +16,8 @@ interface ReportState {
 
   addReport: (r: Omit<VerificationReport, 'id' | 'generated_at'>) => VerificationReport;
   removeReport: (id: string) => void;
+  cloneReportsForProject: (sourceProjectId: string, sourceSchemeId: string, destProjectId: string, destSchemeId: string) => void;
+  removeReportsForProject: (projectId: string) => void;
   getReportsForProject: (projectId: string) => VerificationReport[];
   getLatestReport: (projectId: string) => VerificationReport | null;
   clearReports: (projectId?: string) => void;
@@ -38,6 +40,23 @@ export const useReportStore = create<ReportState>()(
 
       removeReport: (id) =>
         set((s) => ({ reports: s.reports.filter((r) => r.id !== id) })),
+
+      cloneReportsForProject: (sourceProjectId, sourceSchemeId, destProjectId, destSchemeId) => {
+        const src = get().reports.filter(
+          (r) => r.project_id === sourceProjectId && r.scheme_id === sourceSchemeId
+        );
+        const clones = src.map((r) => ({
+          ...r,
+          id: generateID('rpt'),
+          generated_at: Date.now(),
+          project_id: destProjectId,
+          scheme_id: destSchemeId,
+        }));
+        set((s) => ({ reports: [...clones, ...s.reports] }));
+      },
+
+      removeReportsForProject: (projectId) =>
+        set((s) => ({ reports: s.reports.filter((r) => r.project_id !== projectId) })),
 
       getReportsForProject: (projectId) =>
         get()

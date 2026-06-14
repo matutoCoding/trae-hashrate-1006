@@ -36,18 +36,24 @@ import {
 import type { ConstructionStep, WarningItem } from '@/types/calc';
 
 export default function Construction() {
-  const { stones, getStoneMap } = useStoneStore();
-  const store = useStackStore();
+  const stoneStore = useStoneStore();
+  const stackStore = useStackStore();
   const projectStore = useProjectStore();
   const currentPrj = projectStore.ensureDefaultProject();
-  const constrStore = useConstructionStore();
+  const projectId = currentPrj.id;
+  const constructionStore = useConstructionStore();
 
-  const scheme = store.schemes.find(s => s.id === store.currentSchemeId)
-    ?? (store.schemes.length === 0 ? store.createScheme(currentPrj.name + '·堆叠方案', currentPrj.description, currentPrj.base_dimensions.length_cm, currentPrj.base_dimensions.width_cm) : store.schemes[0]);
+  useEffect(() => {
+    stoneStore.ensureStonesForProject(projectId);
+    stackStore.ensureSchemeForProject(projectId, currentPrj.base_dimensions.length_cm, currentPrj.base_dimensions.width_cm);
+  }, [projectId]);
 
-  const layers = store.getLayersForScheme(scheme.id);
-  const placed = store.getPlacedForScheme(scheme.id);
-  const stoneMap = getStoneMap();
+  const scheme = stackStore.ensureSchemeForProject(projectId, currentPrj.base_dimensions.length_cm, currentPrj.base_dimensions.width_cm);
+
+  const stones = stoneStore.getStonesForProject(projectId);
+  const stoneMap = stoneStore.getStoneMapForProject(projectId);
+  const placed = stackStore.getPlacedForScheme(scheme.id);
+  const layers = stackStore.getLayersForScheme(scheme.id);
 
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
@@ -55,33 +61,33 @@ export default function Construction() {
 
   useEffect(() => {
     if (layers.length === 0) {
-      store.addLayer('基础层', '基座层', 0);
-      store.addLayer('主山层', '主峰层', 80);
-      store.addLayer('中层', '配石中层', 200);
-      store.addLayer('顶峦层', '收顶层', 320);
+      stackStore.addLayer('基础层', '基座层', 0);
+      stackStore.addLayer('主山层', '主峰层', 80);
+      stackStore.addLayer('中层', '配石中层', 200);
+      stackStore.addLayer('顶峦层', '收顶层', 320);
     }
-  }, [layers.length, store]);
+  }, [layers.length, stackStore]);
 
   useEffect(() => {
     if (placed.length === 0 && stones.length >= 5) {
       const lids = layers.map(l => l.id);
       if (lids.length >= 4) {
-        const p1 = store.placeStone({ stone_id: stones[1]?.id ?? stones[0].id, layer_id: lids[0], pos_x: 50, pos_y: 120, pos_z: 0, support_type: '叠' });
-        const p2 = store.placeStone({ stone_id: stones[3]?.id ?? stones[0].id, layer_id: lids[0], pos_x: 380, pos_y: 120, pos_z: 0, support_type: '叠' });
-        const p3 = store.placeStone({ stone_id: stones[0]?.id ?? stones[0].id, layer_id: lids[1], pos_x: 200, pos_y: 140, pos_z: 85, support_type: '竖', supported_by: [p1.id, p2.id] });
-        store.placeStone({ stone_id: stones[2]?.id ?? stones[0].id, layer_id: lids[2], pos_x: 350, pos_y: 150, pos_z: 210, support_type: '挑', supported_by: [p3.id], has_tie: true, has_grout: true });
-        store.placeStone({ stone_id: stones[7]?.id ?? stones[0].id, layer_id: lids[3], pos_x: 220, pos_y: 140, pos_z: 330, support_type: '安', supported_by: [p3.id] });
+        const p1 = stackStore.placeStone({ stone_id: stones[1]?.id ?? stones[0].id, layer_id: lids[0], pos_x: 50, pos_y: 120, pos_z: 0, support_type: '叠' });
+        const p2 = stackStore.placeStone({ stone_id: stones[3]?.id ?? stones[0].id, layer_id: lids[0], pos_x: 380, pos_y: 120, pos_z: 0, support_type: '叠' });
+        const p3 = stackStore.placeStone({ stone_id: stones[0]?.id ?? stones[0].id, layer_id: lids[1], pos_x: 200, pos_y: 140, pos_z: 85, support_type: '竖', supported_by: [p1.id, p2.id] });
+        stackStore.placeStone({ stone_id: stones[2]?.id ?? stones[0].id, layer_id: lids[2], pos_x: 350, pos_y: 150, pos_z: 210, support_type: '挑', supported_by: [p3.id], has_tie: true, has_grout: true });
+        stackStore.placeStone({ stone_id: stones[7]?.id ?? stones[0].id, layer_id: lids[3], pos_x: 220, pos_y: 140, pos_z: 330, support_type: '安', supported_by: [p3.id] });
       }
     }
-  }, [placed.length, stones, layers, store]);
+  }, [placed.length, stones, layers, stackStore]);
 
   useEffect(() => {
-    if (placed.length > 0) {
-      constrStore.initializeRecords(currentPrj.id, scheme.id, placed, stoneMap, layers);
+    if (scheme.id && layers.length > 0) {
+      constructionStore.initializeRecords(projectId, scheme.id, placed, stoneMap, layers);
     }
-  }, [placed.length, currentPrj.id, scheme.id]);
+  }, [projectId, scheme.id, placed.length, layers.length]);
 
-  const progress = constrStore.getProgress(currentPrj.id, scheme.id);
+  const progress = constructionStore.getProgress(projectId, scheme.id);
 
   const steps = useMemo(
     () => generateConstructionSequence(placed, stoneMap, layers),
@@ -404,7 +410,7 @@ export default function Construction() {
                             const isExpanded = expandedStep === step.order;
                             const stone = stones.find(s => s.code === step.stone_code);
                             const placedStone = placed.find(p => p.id === step.placed_stone_id);
-                            const record = placedStone ? constrStore.records.find(r => r.placed_stone_id === placedStone.id) : undefined;
+                            const record = placedStone ? constructionStore.records.find(r => r.placed_stone_id === placedStone.id) : undefined;
                             const orderColors = ['from-pine-500 to-pine-600', 'from-stoneblue-500 to-stoneblue-600', 'from-ochre-500 to-ochre-600', 'from-cinnabar-500 to-cinnabar-600'];
                             const statusColor: Record<string, string> = {
                               pending: 'border-ink-300 bg-white text-ink-500',

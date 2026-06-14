@@ -3,10 +3,12 @@ import { ChevronDown, FolderKanban, Plus, Copy, Edit3, Archive, Trash2, Check, X
 import { useProjectStore } from '@/store/projectStore';
 import type { Project } from '@/types/project';
 import { useStackStore } from '@/store/stackStore';
+import { useStoneStore } from '@/store/stoneStore';
 
 export default function ProjectSwitcher() {
   const projectStore = useProjectStore();
   const stackStore = useStackStore();
+  const stoneStore = useStoneStore();
   const [open, setOpen] = useState(false);
   const [showManage, setShowManage] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -19,15 +21,8 @@ export default function ProjectSwitcher() {
 
   const switchTo = (p: Project) => {
     projectStore.switchProject(p.id);
-    const existingScheme = stackStore.schemes.find(
-      (s) => (s as any).project_id === p.id || s.name.startsWith(p.name)
-    );
-    if (existingScheme) {
-      stackStore.setCurrentScheme(existingScheme.id);
-    } else {
-      const sc = stackStore.createScheme(`${p.name}·堆叠方案`, p.description, p.base_dimensions.length_cm, p.base_dimensions.width_cm);
-      Object.assign(sc, { project_id: p.id });
-    }
+    stoneStore.ensureStonesForProject(p.id);
+    stackStore.ensureSchemeForProject(p.id, p.base_dimensions.length_cm, p.base_dimensions.width_cm);
     setOpen(false);
   };
 

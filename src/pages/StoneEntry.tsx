@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Header, { ActionButton } from '@/components/layout/Header';
 import { useStoneStore } from '@/store/stoneStore';
+import { useProjectStore } from '@/store/projectStore';
 import { MATERIAL_NAMES, type StoneMaterial, type Stone } from '@/types/stone';
 import { estimateVolume, estimateWeight } from '@/utils/geometry';
 import SealStamp from '@/components/SealStamp';
@@ -38,12 +39,25 @@ const materialColors: Record<string, string> = {
 };
 
 export default function StoneEntry() {
-  const { stones, addStone, updateStone, removeStone } = useStoneStore();
+  const stoneStore = useStoneStore();
+  const projectStore = useProjectStore();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [search, setSearch] = useState('');
   const [filterMat, setFilterMat] = useState<StoneMaterial | 'all'>('all');
+
+  const currentPrj = projectStore.ensureDefaultProject();
+  const projectId = currentPrj.id;
+
+  useEffect(() => {
+    stoneStore.ensureStonesForProject(projectId);
+  }, [projectId]);
+
+  const projectStones = useMemo(
+    () => stoneStore.getStonesForProject(projectId),
+    [stoneStore.stones, projectId]
+  );
 
   const computed = useMemo(() => {
     const vol = estimateVolume(form.length_cm, form.width_cm, form.height_cm);
@@ -52,12 +66,12 @@ export default function StoneEntry() {
   }, [form.length_cm, form.width_cm, form.height_cm, form.material]);
 
   const filtered = useMemo(() => {
-    return stones.filter(s => {
+    return projectStones.filter(s => {
       const matchText = !search || s.name.includes(search) || s.code.toLowerCase().includes(search.toLowerCase());
       const matchMat = filterMat === 'all' || s.material === filterMat;
       return matchText && matchMat;
     });
-  }, [stones, search, filterMat]);
+  }, [projectStones, search, filterMat]);
 
   const totalWeight = filtered.reduce((s, x) => s + x.weight_kg, 0);
 
@@ -66,9 +80,9 @@ export default function StoneEntry() {
   const handleSave = () => {
     if (!form.name.trim()) return;
     if (editingId) {
-      updateStone(editingId, { ...form });
+      stoneStore.updateStone(editingId, { ...form });
     } else {
-      addStone({ ...form });
+      stoneStore.addStone(projectId, { ...form });
     }
     resetForm();
   };
@@ -104,7 +118,7 @@ export default function StoneEntry() {
     <div className="flex-1 flex flex-col min-h-screen">
       <Header
         title="叠石录入"
-        subtitle={`石库档案 · 现存 ${stones.length} 方 · 总重 ${(totalWeight / 1000).toFixed(2)} 吨`}
+        subtitle={`石库档案 · 现存 ${projectStones.length} 方 · 总重 ${(totalWeight / 1000).toFixed(2)} 吨`}
         actions={
           <>
             <ActionButton icon={FileUp} variant="ghost">批量导入</ActionButton>
@@ -307,7 +321,7 @@ export default function StoneEntry() {
                   </select>
                 </div>
                 <span className="stat-pill bg-stoneblue-50 text-stoneblue-700 border border-stoneblue-100">
-                  显示 {filtered.length} / {stones.length}
+                  显示 {filtered.length} / {projectStones.length}
                 </span>
               </div>
             </div>
@@ -384,7 +398,7 @@ export default function StoneEntry() {
                               <Edit3 className="w-3 h-3" /> 编辑
                             </button>
                             <button
-                              onClick={() => { if (confirm(`确认删除「${s.name}」？`)) removeStone(s.id); }}
+                              onClick={() => { if (confirm(`确认删除「${s.name}」？`)) stoneStore.removeStone(s.id); }}
                               className="flex items-center gap-1 px-2.5 py-1 rounded text-xs text-cinnabar-600 hover:bg-cinnabar-50 transition-colors ml-auto">
                               <Trash2 className="w-3 h-3" /> 删除
                             </button>

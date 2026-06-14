@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Header, { ActionButton } from '@/components/layout/Header';
+import { useProjectStore } from '@/store/projectStore';
 import { useStoneStore } from '@/store/stoneStore';
 import { useStackStore } from '@/store/stackStore';
 import { computeCenterOfGravity } from '@/utils/geometry';
@@ -20,14 +21,23 @@ const LAYER_TYPES: Array<{ type: '基础层' | '主山层' | '中层' | '顶峦�
 const SUPPORT_TYPES: StoneSupportType[] = ['叠', '竖', '横', '挑', '悬', '安', '连', '接'];
 
 export default function CenterOfGravity() {
-  const { stones, getStoneMap } = useStoneStore();
-  const store = useStackStore();
-  const scheme = store.schemes.find(s => s.id === store.currentSchemeId)
-    ?? (store.schemes.length === 0 ? store.createScheme('默认假山方案', '示例方案', 600, 400) : store.schemes[0]);
+  const projectStore = useProjectStore();
+  const stackStore = useStackStore();
+  const stoneStore = useStoneStore();
+  const currentPrj = projectStore.ensureDefaultProject();
+  const projectId = currentPrj.id;
 
-  const layers = store.getLayersForScheme(scheme.id);
-  const placed = store.getPlacedForScheme(scheme.id);
-  const stoneMap = getStoneMap();
+  useEffect(() => {
+    stoneStore.ensureStonesForProject(projectId);
+    stackStore.ensureSchemeForProject(projectId, currentPrj.base_dimensions.length_cm, currentPrj.base_dimensions.width_cm);
+  }, [projectId]);
+
+  const scheme = stackStore.ensureSchemeForProject(projectId, currentPrj.base_dimensions.length_cm, currentPrj.base_dimensions.width_cm);
+
+  const layers = stackStore.getLayersForScheme(scheme.id);
+  const placed = stackStore.getPlacedForScheme(scheme.id);
+  const stones = stoneStore.getStonesForProject(projectId);
+  const stoneMap = stoneStore.getStoneMapForProject(projectId);
 
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [selectedPlaced, setSelectedPlaced] = useState<string | null>(null);
@@ -39,7 +49,7 @@ export default function CenterOfGravity() {
 
   const submitAddLayer = () => {
     const nm = newLayerName.trim() || `${newLayerType}-${layers.length + 1}`;
-    store.addLayer(newLayerType, nm, newLayerBaseZ);
+    stackStore.addLayer(newLayerType, nm, newLayerBaseZ);
     setShowAddLayer(false);
     setNewLayerName('');
     setNewLayerType('中层');
@@ -50,12 +60,12 @@ export default function CenterOfGravity() {
 
   useEffect(() => {
     if (layers.length === 0) {
-      store.addLayer('基础层', '基座层', 0);
-      store.addLayer('主山层', '主峰层', 80);
-      store.addLayer('中层', '配石中层', 200);
-      store.addLayer('顶峦层', '收顶层', 320);
+      stackStore.addLayer('基础层', '基座层', 0);
+      stackStore.addLayer('主山层', '主峰层', 80);
+      stackStore.addLayer('中层', '配石中层', 200);
+      stackStore.addLayer('顶峦层', '收顶层', 320);
     }
-  }, [layers.length, store]);
+  }, [layers.length, stackStore]);
 
   const cgResult = useMemo(
     () => computeCenterOfGravity(scheme, layers, placed, stoneMap),
@@ -81,11 +91,11 @@ export default function CenterOfGravity() {
     if (placed.length > 0) {
       if (!confirm('将清除现有堆叠，继续吗？')) return;
     }
-    store.clearScheme();
-    const l1 = store.addLayer('基础层', '基座层');
-    const l2 = store.addLayer('主山层', '主峰层');
-    const l3 = store.addLayer('中层', '配石中层');
-    const l4 = store.addLayer('顶峦层', '收顶层');
+    stackStore.clearScheme();
+    const l1 = stackStore.addLayer('基础层', '基座层');
+    const l2 = stackStore.addLayer('主山层', '主峰层');
+    const l3 = stackStore.addLayer('中层', '配石中层');
+    const l4 = stackStore.addLayer('顶峦层', '收顶层');
 
     const sBase = stones[1] ?? stones[0];
     const sBase2 = stones[3] ?? stones[0];
@@ -94,7 +104,7 @@ export default function CenterOfGravity() {
     const sTop = stones[7] ?? stones[0];
 
     // 压脚石1（左）
-    const p1 = store.placeStone({
+    const p1 = stackStore.placeStone({
       stone_id: sBase.id, layer_id: l1.id,
       pos_x: 50, pos_y: 120, pos_z: 0,
       support_type: '叠',
@@ -105,7 +115,7 @@ export default function CenterOfGravity() {
       ],
     });
     // 压脚石2（右）
-    const p2 = store.placeStone({
+    const p2 = stackStore.placeStone({
       stone_id: sBase2.id, layer_id: l1.id,
       pos_x: 380, pos_y: 120, pos_z: 0,
       support_type: '叠',
@@ -115,7 +125,7 @@ export default function CenterOfGravity() {
       ],
     });
     // 主山石（竖）
-    const p3 = store.placeStone({
+    const p3 = stackStore.placeStone({
       stone_id: sMain.id, layer_id: l2.id,
       pos_x: 200, pos_y: 140, pos_z: 85,
       support_type: '竖', supported_by: [p1.id, p2.id],
@@ -127,7 +137,7 @@ export default function CenterOfGravity() {
       ],
     });
     // 挑石
-    store.placeStone({
+    stackStore.placeStone({
       stone_id: sOver.id, layer_id: l3.id,
       pos_x: 350, pos_y: 150, pos_z: 210,
       support_type: '挑', supported_by: [p3.id],
@@ -138,7 +148,7 @@ export default function CenterOfGravity() {
       ],
     });
     // 顶巅小品
-    store.placeStone({
+    stackStore.placeStone({
       stone_id: sTop.id, layer_id: l4.id,
       pos_x: 220, pos_y: 140, pos_z: 330,
       support_type: '安', supported_by: [p3.id],
@@ -213,7 +223,7 @@ export default function CenterOfGravity() {
                             onChange={e => {
                               const stId = e.target.value;
                               if (!stId) return;
-                              store.placeStone({
+                              stackStore.placeStone({
                                 stone_id: stId, layer_id: l.id,
                                 pos_x: 100 + Math.random() * 300,
                                 pos_y: 100 + Math.random() * 150,
@@ -240,7 +250,7 @@ export default function CenterOfGravity() {
                                 <span className="font-song text-ink-800 flex-1 truncate">{st?.name}</span>
                                 <span className="px-1.5 py-0.5 rounded bg-ochre-100 text-ochre-700 text-[10px]">{p.support_type}</span>
                                 <button
-                                  onClick={e => { e.stopPropagation(); store.removePlaced(p.id); }}
+                                  onClick={e => { e.stopPropagation(); stackStore.removePlaced(p.id); }}
                                   className="p-1 rounded hover:bg-cinnabar-50 text-cinnabar-500">
                                   <Trash2 className="w-3 h-3" />
                                 </button>
@@ -507,7 +517,7 @@ export default function CenterOfGravity() {
                     <div className="flex justify-between"><span className="text-ink-600">重量</span><span className="font-mono">{st.weight_kg} kg</span></div>
                     <div className="flex justify-between"><span className="text-ink-600">支撑方式</span>
                       <select value={p.support_type}
-                        onChange={e => store.updatePlaced(p.id, { support_type: e.target.value as StoneSupportType })}
+                        onChange={e => stackStore.updatePlaced(p.id, { support_type: e.target.value as StoneSupportType })}
                         className="px-2 py-0.5 rounded bg-white border border-ink-200 text-xs">
                         {SUPPORT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
@@ -516,22 +526,22 @@ export default function CenterOfGravity() {
                       <label className="text-ink-600 text-xs mb-1 block">位置 X/Y/Z (cm)</label>
                       <div className="grid grid-cols-3 gap-1">
                         <input type="number" className="ink-input text-xs" value={p.pos_x}
-                          onChange={e => store.updatePlaced(p.id, { pos_x: +e.target.value })} />
+                          onChange={e => stackStore.updatePlaced(p.id, { pos_x: +e.target.value })} />
                         <input type="number" className="ink-input text-xs" value={p.pos_y}
-                          onChange={e => store.updatePlaced(p.id, { pos_y: +e.target.value })} />
+                          onChange={e => stackStore.updatePlaced(p.id, { pos_y: +e.target.value })} />
                         <input type="number" className="ink-input text-xs" value={p.pos_z}
-                          onChange={e => store.updatePlaced(p.id, { pos_z: +e.target.value })} />
+                          onChange={e => stackStore.updatePlaced(p.id, { pos_z: +e.target.value })} />
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
                       <label className="flex items-center gap-1">
                         <input type="checkbox" checked={p.has_tie}
-                          onChange={e => store.updatePlaced(p.id, { has_tie: e.target.checked })} />
+                          onChange={e => stackStore.updatePlaced(p.id, { has_tie: e.target.checked })} />
                         设拉结
                       </label>
                       <label className="flex items-center gap-1">
                         <input type="checkbox" checked={p.has_grout}
-                          onChange={e => store.updatePlaced(p.id, { has_grout: e.target.checked })} />
+                          onChange={e => stackStore.updatePlaced(p.id, { has_grout: e.target.checked })} />
                         灌浆缝
                       </label>
                     </div>
